@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 from build123d import Box, import_step
 
-from holder import band
+from holder import band, block
 from holder.__main__ import placeholder_box
-from holder.common import hex_pocket, y_cylinder
+from holder.common import box_from, hex_pocket, y_cylinder
 from holder.coupon import (
     COUPON_BOLT_Z,
     build_back,
@@ -119,6 +119,36 @@ def test_plugged_boss_hole_fails_checks(band_halves: tuple) -> None:
     x, z = band.boss_hole_centers(spec)[0]
     plug = y_cylinder(x, z, spec.column_d / 2 - 0.4, band.boss_face_y(spec) + 0.2, spec.m3_through)
     assert _failed(band.checks_back(back + plug, spec), "boss hole open")
+
+
+def test_block_checks_pass(band_halves: tuple, tmp_path: Path) -> None:
+    spec, front, back = band_halves
+    part = block.build(spec)
+    failed = [(name, detail) for name, ok, detail in block.checks(part, spec) if not ok]
+    assert not failed, failed
+    failed = [
+        (name, detail)
+        for name, ok, detail in block.checks_vs_band(part, front, back, spec)
+        if not ok
+    ]
+    assert not failed, failed
+    assert block.PRINT["block"] == (-1, 0, 0)
+    step, _stl = export_part(part, tmp_path / part.label)
+    brought_back = import_step(step)
+    assert abs(brought_back.volume - part.volume) / part.volume < 0.005
+
+
+def test_bridged_top_pockets_fail_the_wall_check() -> None:
+    spec = Params()
+    part = block.build(spec)
+    m3_xy, quarter_xy = block.top_hole_xy(spec)
+    x, y = m3_xy[0]
+    qx, qy = quarter_xy
+    top = block.riser_top(spec)
+    bridge = box_from(
+        min(qx, x) - 1, min(qy, y) - 1, top - 18, max(qx, x) + 1, max(qy, y) + 1, top - 6
+    )
+    assert _failed(block.checks(part - bridge, spec), "wall between pockets")
 
 
 def test_hex_pocket_is_a_void() -> None:

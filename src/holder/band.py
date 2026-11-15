@@ -95,6 +95,11 @@ def clamp_halves(
     return front, back
 
 
+def boss_z0(spec: Params) -> float:
+    """Bottom of the boss. The block plate shares this plane."""
+    return (spec.band_h - spec.boss_w) / 2
+
+
 def boss_face_y(spec: Params) -> float:
     """Back face of the boss. The block plate sits on this plane."""
     return spec.column_d / 2 + spec.band_wall + spec.boss_depth
@@ -135,7 +140,7 @@ def _with_ribs(front: Part, back: Part, spec: Params) -> tuple[Part, Part]:
 
 
 def _with_boss(back: Part, spec: Params) -> Part:
-    z0 = (spec.band_h - spec.boss_w) / 2
+    z0 = boss_z0(spec)
     # 0.2 mm overlap with the band so the flat back fuses. The outer face stays on boss_face_y.
     boss = box_from(
         -spec.boss_w / 2,
