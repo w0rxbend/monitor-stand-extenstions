@@ -15,6 +15,9 @@ depth are not checked against a specific screw.
 The ZV-E10 body is 115.2 x 64.2 x 44.8 mm from grip to monitor (Sony help
 guide). The tripod-socket offset is not on that page, so the camera screw
 sits in a slot.
+
+The phone cradle is not printed. The bought holder has one ear. `phone` is
+the pocket for that ear. Width and hole size are from a photo, not calipers.
 """
 
 from build123d import Cylinder, Part, Pos, Rot
@@ -39,6 +42,15 @@ CAM_MOUNT_Y = -24.0
 CAM_Y = 8.0
 STUD_POCKET_D = 13.0
 STUD_POCKET_H = 5.0
+# Bought phone ear, from the photo on a 5 mm dot grid (32 px beside the ear).
+# Not calipered. Width 104 px, hole 30 px. A 1/4" screw does not pass that hole.
+PHONE_EAR_W = 16.0
+PHONE_SLOT_W = PHONE_EAR_W + 3.0
+PHONE_HOLE_Y = 10.0
+PHONE_MOUNT_Y = -16.0
+PHONE_WALL_Y0 = 0.0
+PHONE_WALL_Y1 = 16.0
+PHONE_WALL_Z = 14.0
 
 # Base ears end at link-local Y = 12 once the tang hole (local Y = 0) sits on
 # the base hole (Y = JOINT_Y). The beam starts past that, and the tang overlaps it.
@@ -213,13 +225,26 @@ def build_post(spec: Params) -> Part:
 
 
 def build_phone(spec: Params) -> Part:
-    """Cradle. The phone leans on the back and sticks out the top. Channel is about 80 x 12 mm."""
-    back = box_from(-46, -12, 0, 46, 4, 100)
-    bottom = box_from(-46, -12, 0, 46, 18, 18)
-    left = box_from(-46, -12, 0, -40, 16, 100)
-    right = box_from(40, -12, 0, 46, 16, 100)
-    body = _fuse([_foot_solid(0, -20, 0), back, bottom, left, right])
-    return _label(_subtract(body, _foot_tools(spec, 0, -20, 0)), "phone")
+    """Pocket for the bought ear. Walls stop spin. An M3 screw clamps the ear down."""
+    half = PHONE_SLOT_W / 2
+    pad = box_from(-16, PHONE_MOUNT_Y - 16, 0, 16, PHONE_WALL_Y1, FOOT_T)
+    walls = [
+        box_from(-16, PHONE_WALL_Y0, 0, -half, PHONE_WALL_Y1, PHONE_WALL_Z),
+        box_from(half, PHONE_WALL_Y0, 0, 16, PHONE_WALL_Y1, PHONE_WALL_Z),
+    ]
+    ear_hole = _hole(0, PHONE_HOLE_Y, -0.2, FOOT_T + 0.2, spec.m3_through)
+    nut = hex_pocket(spec.m3_hex_af, spec.m3_hex_h, at=(0, PHONE_HOLE_Y, 0))
+    nut_slot = box_from(
+        0,
+        PHONE_HOLE_Y - spec.m3_hex_af / 2,
+        0,
+        16.2,
+        PHONE_HOLE_Y + spec.m3_hex_af / 2,
+        spec.m3_hex_h,
+    )
+    body = _fuse([pad, *walls])
+    tools = [*_foot_tools(spec, 0, PHONE_MOUNT_Y, 0), ear_hole, nut, nut_slot]
+    return _label(_subtract(body, tools), "phone")
 
 
 BUILDERS = (
@@ -303,7 +328,23 @@ def _bores(label: str, spec: Params) -> list[tuple[str, Part]]:
             ("mount bore open", _foot_probe(spec, 0, 0, 0)),
             ("mount bore open", _face_probe(spec, 0, 0, 74)),
         ],
-        "phone": [("mount bore open", _foot_probe(spec, 0, -20, 0))],
+        "phone": [
+            ("mount bore open", _foot_probe(spec, 0, PHONE_MOUNT_Y, 0)),
+            (
+                "ear bore open",
+                _hole(
+                    0,
+                    PHONE_HOLE_Y,
+                    spec.m3_hex_h + 0.3,
+                    FOOT_T - 0.3,
+                    spec.m3_through - 0.4,
+                ),
+            ),
+            (
+                "ear slot open",
+                box_from(-8, 2, FOOT_T + 0.4, 8, 14, PHONE_WALL_Z - 0.4),
+            ),
+        ],
     }
     return bores[label]
 

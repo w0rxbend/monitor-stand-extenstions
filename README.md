@@ -24,11 +24,13 @@ Three Sony ZV-E10 bodies do not fit on this plate. The body is 115.2 mm wide. Us
 
 The outer link ends in a 32 mm face with a captive 1/4"-20 nut. The slot for that nut opens to the side. Any foot in this set bolts to that face the same way it bolts to the block.
 
-## Phone cradle
+## Phone
 
-![Phone cradle, shaded from phone.stl](docs/renders/phone.png)
+![Phone ear pocket, shaded from phone.stl](docs/renders/phone.png)
 
-`phone` is a printed cradle. The channel is about 80 mm wide and 12 mm deep. The phone leans on the back and sticks out the top. The foot bolts down with a 1/4"-20 screw into a mount face.
+`phone` is a pocket for the clamp you already have. Do not print another cradle. The ear slides in from the open end. Two walls, 19 mm apart, stop it spinning. An M3 screw comes down through the ear into a captive M3 nut. The walls are open on top, so ear thickness does not have to match. The foot still bolts down with a 1/4"-20 screw.
+
+The ear was scaled from a photo on a 5 mm dot grid, not calipered. That scale reads the ear about 16 mm wide and the hole about 4.7 mm, so a 1/4" screw does not pass the hole. If the ear does not fit, change `PHONE_EAR_W` in `src/holder/accessories.py`.
 
 ## GoPro
 
@@ -81,7 +83,7 @@ Each name in `exports/` has `.step`, `.stl`, and `.3mf`. Files are in print orie
 | `cam_plate` | PETG | Three camera stations |
 | `hinge_base`, `hinge_link` | PETG | One hinge |
 | `hinge_mid` | PETG | Extra hinge between those two |
-| `phone` | PETG | Cradle |
+| `phone` | PETG | Pocket for the bought ear |
 | `gopro` | PETG | Stud foot for a bought buckle |
 | `zve10` | PETG | One ZV-E10 |
 | `post` | PETG | Raised mount face |
@@ -90,7 +92,7 @@ Print the coupon first (about 25 minutes). The M3 nut and the 1/4" nut should pr
 
 The band's grip ribs still intersect the column by about 1 mm, so the band will not slide on. Do not print the band until that fit is fixed. The coupon has not been printed. `column_r` (12 mm) and the 1/4" pocket (11.4 mm across-flats, 5.8 mm thick) are estimates.
 
-Passing CAD checks is not a printed fit.
+The phone ear width and hole size are from that photo scale. Passing CAD checks is not a printed fit.
 
 ## Print
 
@@ -107,6 +109,7 @@ Passing CAD checks is not a printed fit.
 - Each camera: 1 × 1/4"-20 screw, plate thickness plus about 5 mm
 - Each foot: 1 × 1/4"-20 screw into the mount-face nut
 - GoPro: one more 1/4"-20 screw as the stud, and a bought three-prong buckle
+- Phone: the bought clamp, plus 1 × M3×12 and one M3 nut through its ear
 - Each hinge: 1 × M6 bolt, knob, and steel washers
 
 ## After the coupon
