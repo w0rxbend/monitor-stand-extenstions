@@ -4,7 +4,7 @@ A TPU band clamps the column of the monitor stand. A PETG block on that band has
 
 ![Block, two-hinge arm, and camera plate, shaded from the STL meshes](docs/renders/hero.png)
 
-The pictures are rasters of the STL triangles. They are not photographs. Rebuild them with `uv run --with numpy --with pillow python tools/render_gallery.py`.
+The pictures are rasters of the current STL meshes. They are not photographs. Rebuild them with `uv run --with numpy --with pillow python tools/render_gallery.py`.
 
 Outer corners are circular arcs, so those surfaces are cylinders.
 
@@ -74,7 +74,7 @@ That builds every modeled part, runs `checks()`, and writes `exports/` plus PNG 
 
 ## Modeled parts
 
-Each name in `exports/` has `.step`, `.stl`, and `.3mf`. Files are in print orientation, bed face on Z = 0. The release attaches the same files. `out/` holds line previews only.
+Each name in `exports/` has `.step`, `.stl`, and `.3mf`. Files are in print orientation, bed face on Z = 0. [v0.3.0](https://github.com/w0rxbend/monitor-stand-extenstions/releases/tag/v0.3.0) attaches those files. `out/` holds line previews only.
 
 | Part | Material | What it is |
 | --- | --- | --- |
