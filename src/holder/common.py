@@ -1,0 +1,336 @@
+"""Shared helpers for the part modules: the part contract, cutters, and measurements.
+
+Measure on real geometry, never on bounding boxes (OCCT pads them):
+circular edges and cylindrical faces for hole axes and diameters, solid-to-solid
+distance for walls, boolean intersection volume for clashes.
+"""
+
+import math
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
+from itertools import combinations
+from typing import NamedTuple
+
+from build123d import (
+    Align,
+    Axis,
+    Box,
+    Compound,
+    Cylinder,
+    Face,
+    Part,
+    Plane,
+    Polygon,
+    Shape,
+    Vector,
+    extrude,
+)
+from OCP.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_Surface
+from OCP.BRepTools import BRepTools
+from OCP.GeomAbs import GeomAbs_Circle, GeomAbs_Cylinder
+
+from holder.params import MATERIALS, Params
+
+VOLUME_EPS = 1e-6  # mm3: an intersection at or below this counts as zero
+TOUCH_EPS = 1e-3  # mm: solids closer than this touch
+RADIUS_TOL = 1e-3  # mm: a circle or cylinder matches a radius within this
+COAXIAL_TOL = 0.01  # mm: two axes closer than this count as coaxial
+ANGLE_TOL = 0.1  # degrees: two directions within this count as parallel
+
+Vec3 = tuple[float, float, float]
+
+
+# --- Check results -------------------------------------------------------------------------------
+
+
+class Check(NamedTuple):
+    """One check result: (name, ok, measured)."""
+
+    name: str
+    ok: bool
+    measured: str
+
+
+def at_least(name: str, value: float, minimum: float, unit: str = "mm") -> Check:
+    return Check(name, value >= minimum, f"{value:.3f} {unit} (min {minimum:g})")
+
+
+def at_most(name: str, value: float, maximum: float, unit: str = "mm") -> Check:
+    return Check(name, value <= maximum, f"{value:.3g} {unit} (max {maximum:g})")
+
+
+def count_is(name: str, found: int, expected: int) -> Check:
+    return Check(name, found == expected, f"{found} (expected {expected})")
+
+
+def single_solid(part: Shape) -> Check:
+    """The part is exactly one valid solid."""
+    n = len(part.solids())
+    valid = part.is_valid
+    return Check("one valid solid", n == 1 and valid, f"{n} solid(s), valid={valid}")
+
+
+# --- Part contract (see holder.registry) ---------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PartSpec:
+    """One printed part. See the holder.registry docstring for the contract."""
+
+    name: str  # NAME: unique, file stem in out/
+    material: str  # MATERIAL: key into params.MATERIALS
+    print_normal: Vec3  # PRINT: outward normal of the bed face, assembly coordinates
+    build: Callable[[Params], Part]  # -> one solid in assembly coordinates
+    checks: Callable[[Part, Params], list[Check]]
+    assembly: str = "holder"  # parts of one assembly are clash-checked against each other
+
+    def __post_init__(self) -> None:
+        if self.material not in MATERIALS:
+            raise ValueError(f"{self.name}: unknown material {self.material!r}")
+        if Vector(*self.print_normal).length < 1e-9:
+            raise ValueError(f"{self.name}: print_normal must be non-zero")
+
+
+# --- Cutters -------------------------------------------------------------------------------------
+
+
+def plane_at(origin: Iterable[float], axis: Iterable[float], x_dir: Iterable[float] | None = None):
+    """A plane at `origin` whose normal is `axis`. `x_dir` must be perpendicular to `axis`;
+    without it, the plane's x is the global X (or Y, if `axis` is along X) made perpendicular."""
+    z = Vector(*axis).normalized()
+    if x_dir is None:
+        ref = Vector(1, 0, 0) if abs(z.X) < 0.9 else Vector(0, 1, 0)
+        x = (ref - z * ref.dot(z)).normalized()
+    else:
+        x = Vector(*x_dir).normalized()
+        if abs(x.dot(z)) > 1e-9:
+            raise ValueError("x_dir must be perpendicular to axis")
+    return Plane(origin=Vector(*origin), x_dir=x, z_dir=z)
+
+
+def rod(d: float, length: float, origin=(0, 0, 0), axis=(0, 0, 1)) -> Part:
+    """Cylinder of diameter `d` from `origin` for `length` along `axis` (a hole cutter)."""
+    cyl = Cylinder(d / 2, length, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return plane_at(origin, axis).location * cyl
+
+
+def hex_pocket(
+    af: float,
+    depth: float,
+    origin=(0, 0, 0),
+    axis=(0, 0, 1),
+    slot_dir: Iterable[float] | None = None,
+    slot_len: float = 0.0,
+) -> Part:
+    """Hex nut pocket cutter: `af` across flats, `depth` long from `origin` along `axis`.
+
+    Two flats run parallel to `slot_dir` (or to the plane x of `plane_at` without a slot).
+    With `slot_len` > 0, a channel `af` wide runs from the hex center along `slot_dir`
+    for `slot_len`, so the nut slides in from a side face: make it reach past that face.
+    """
+    if af <= 0 or depth <= 0 or slot_len < 0:
+        raise ValueError("hex_pocket: af and depth must be > 0, slot_len >= 0")
+    if slot_len > 0 and slot_dir is None:
+        raise ValueError("hex_pocket: slot_len needs slot_dir")
+    corner = af / math.sqrt(3)
+    # Corners at 0, 60, ... degrees: the flats sit at local y = +-af/2, parallel to local x.
+    corners = [
+        (corner * math.cos(math.radians(a)), corner * math.sin(math.radians(a)))
+        for a in range(0, 360, 60)
+    ]
+    cutter = extrude(Polygon(*corners, align=None), amount=depth)
+    if slot_len > 0:
+        cutter += Box(slot_len, af, depth, align=(Align.MIN, Align.CENTER, Align.MIN))
+    return plane_at(origin, axis, slot_dir).location * cutter
+
+
+# --- Measuring -----------------------------------------------------------------------------------
+
+
+class Circle(NamedTuple):
+    radius: float
+    axis: Axis  # position on the axis (the center, for an edge), direction = normal
+
+
+def _parallel(a: Vector, b: Vector, angle_tol: float = ANGLE_TOL) -> bool:
+    return abs(a.normalized().dot(b.normalized())) >= math.cos(math.radians(angle_tol))
+
+
+def _matches(c: Circle, radius: float | None, direction: Iterable[float] | None) -> bool:
+    if radius is not None and abs(c.radius - radius) > RADIUS_TOL:
+        return False
+    return direction is None or _parallel(c.axis.direction, Vector(*direction))
+
+
+def circles(shape: Shape, radius: float | None = None, direction=None) -> list[Circle]:
+    """Circular edges (full circles and arcs), optionally filtered by radius and normal."""
+    found = []
+    for edge in shape.edges():
+        curve = BRepAdaptor_Curve(edge.wrapped)
+        if curve.GetType() == GeomAbs_Circle:
+            circ = curve.Circle()
+            c = Circle(circ.Radius(), Axis(circ.Axis()))
+            if _matches(c, radius, direction):
+                found.append(c)
+    return found
+
+
+def cylinders(shape: Shape, radius: float | None = None, direction=None) -> list[Circle]:
+    """Cylindrical faces, optionally filtered by radius and axis direction."""
+    found = []
+    for face in shape.faces():
+        surface = BRepAdaptor_Surface(face.wrapped)
+        if surface.GetType() == GeomAbs_Cylinder:
+            cyl = surface.Cylinder()
+            c = Circle(cyl.Radius(), Axis(cyl.Axis()))
+            if _matches(c, radius, direction):
+                found.append(c)
+    return found
+
+
+def axis_offset(a: Axis, b: Axis) -> float:
+    """Distance between two parallel axes; infinity if they are not parallel."""
+    if not _parallel(a.direction, b.direction):
+        return math.inf
+    return (b.position - a.position).cross(a.direction.normalized()).length
+
+
+def coaxial(a: Axis, b: Axis, tol: float = COAXIAL_TOL) -> bool:
+    return axis_offset(a, b) <= tol
+
+
+def unique_axes(axes: Iterable[Axis], tol: float = COAXIAL_TOL) -> list[Axis]:
+    """Merge coaxial axes (a hole is often split into two half-cylinder faces)."""
+    result: list[Axis] = []
+    for ax in axes:
+        if not any(coaxial(ax, kept, tol) for kept in result):
+            result.append(ax)
+    return result
+
+
+def hole_axes(shape: Shape, diameter: float, direction=None) -> list[Axis]:
+    """One axis per hole of `diameter`, from the real cylindrical faces."""
+    return unique_axes(c.axis for c in cylinders(shape, diameter / 2, direction))
+
+
+def coaxial_check(
+    name: str,
+    axes_a: list[Axis],
+    axes_b: list[Axis],
+    expected: int | None = None,
+    tol: float = COAXIAL_TOL,
+) -> Check:
+    """Every axis in `axes_a` has a coaxial partner in `axes_b` (and the counts match)."""
+    counts = f"{len(axes_a)}/{len(axes_b)} axes"
+    if not axes_a or len(axes_a) != len(axes_b) or (expected and len(axes_a) != expected):
+        want = f", expected {expected}" if expected else ""
+        return Check(name, False, f"{counts}{want}")
+    worst = max(min(axis_offset(a, b) for b in axes_b) for a in axes_a)
+    return Check(name, worst <= tol, f"{counts}, worst offset {worst:.4f} mm (max {tol:g})")
+
+
+def min_distance(a: Shape, b: Shape) -> float:
+    """Boundary-to-boundary distance. A solid fully inside another is NOT zero here:
+    use intersection_volume for overlap."""
+    return a.distance_to(b)
+
+
+def _lies_on(face: Face, cavity: Shape, tol: float) -> bool:
+    """All vertices and edge midpoints of `face` sit on the cavity boundary."""
+    points = [v.center() for v in face.vertices()] + [e.position_at(0.5) for e in face.edges()]
+    return bool(points) and all(cavity.distance_to(pt) <= tol for pt in points)
+
+
+def wall_around(part: Shape, voids: Shape | Iterable[Shape], touch: float = TOUCH_EPS) -> float:
+    """Thinnest wall between one cavity and the rest of the part's surface (solid distance).
+
+    `voids` are the connected pieces of one cavity, each as it sits in the part (clip any
+    cutter overshoot first), e.g. [bolt hole, nut pocket]. The cavity's own faces are
+    skipped. Each piece is then measured against every other face it does not touch, so
+    a hole that opens into the bed face still counts the nut pocket's wall to that face.
+    """
+    pieces = [voids] if isinstance(voids, Shape) else list(voids)
+    cavity = Compound(pieces)
+    walls = []
+    for face in part.faces():
+        if cavity.distance_to(face) <= touch and _lies_on(face, cavity, touch):
+            continue  # a face of the cavity itself
+        gaps = (piece.distance_to(face) for piece in pieces)
+        walls.extend(g for g in gaps if g > touch)
+    return min(walls, default=math.inf)
+
+
+def face_samples(face: Face, n: int = 5) -> list[Vector]:
+    """Points on a trimmed face: an n x n grid over its UV bounds, kept if on the face."""
+    u0, u1, v0, v1 = BRepTools.UVBounds_s(face.wrapped)
+    surface = BRepAdaptor_Surface(face.wrapped)
+    points = []
+    for i in range(n):
+        for j in range(n):
+            u = u0 + (u1 - u0) * (i + 0.5) / n
+            v = v0 + (v1 - v0) * (j + 0.5) / n
+            pt = Vector(surface.Value(u, v))
+            if face.distance_to(pt) <= 1e-6:
+                points.append(pt)
+    return points
+
+
+def _inside(shape: Shape, pt: Vector) -> bool:
+    return any(solid.is_inside(pt) for solid in shape.solids())
+
+
+def cavity_deviation(
+    part: Shape, pieces: Shape | Iterable[Shape], envelope: Shape
+) -> tuple[float, int]:
+    """How far the part's cavity walls sit from the designed cavity: (worst mm, points).
+
+    `pieces` are the designed voids (cutter & envelope); `envelope` is the body before
+    cutting. Points sampled on every designed wall must lie on the part's surface. Points
+    in an opening (on the envelope surface) or inside another piece are skipped. A plugged,
+    shifted, undersize or oversize hole or pocket moves its walls and shows up here.
+    """
+    pieces = [pieces] if isinstance(pieces, Shape) else list(pieces)
+    worst, count = 0.0, 0
+    for k, piece in enumerate(pieces):
+        others = pieces[:k] + pieces[k + 1 :]
+        for face in piece.faces():
+            for pt in face_samples(face):
+                if envelope.distance_to(pt) <= TOUCH_EPS or any(_inside(o, pt) for o in others):
+                    continue
+                worst = max(worst, part.distance_to(pt))
+                count += 1
+    return worst, count
+
+
+def cavity_check(name: str, part: Shape, pieces, envelope: Shape, tol: float = TOUCH_EPS) -> Check:
+    worst, count = cavity_deviation(part, pieces, envelope)
+    ok = count > 0 and worst <= tol
+    return Check(name, ok, f"walls off design by {worst:.4f} mm (max {tol:g}), {count} points")
+
+
+def intersection_volume(a: Shape, b: Shape) -> float:
+    common = a & b
+    return abs(common.volume) if common is not None else 0.0
+
+
+def clash_checks(
+    parts: Mapping[str, Shape], contacts: Iterable[tuple[str, str]] = ()
+) -> list[Check]:
+    """Pairwise: zero-volume intersection for every pair. Pairs named in `contacts` must
+    touch; every other pair must keep a gap, so an accidental contact fails too."""
+    allowed = {frozenset(pair) for pair in contacts}
+    checks = []
+    for pair in sorted(allowed, key=sorted):
+        unknown = sorted(pair - set(parts))
+        if unknown:
+            checks.append(Check(f"contact {'/'.join(sorted(pair))}", False, f"unknown {unknown}"))
+    for a, b in combinations(parts, 2):
+        volume = intersection_volume(parts[a], parts[b])
+        gap = min_distance(parts[a], parts[b])
+        expect_contact = frozenset((a, b)) in allowed
+        ok = volume <= VOLUME_EPS and (gap <= TOUCH_EPS) == expect_contact
+        kind = "contact" if expect_contact else "gap"
+        checks.append(
+            Check(f"{a} / {b}: {kind}", ok, f"overlap {volume:.1e} mm3, gap {gap:.3f} mm")
+        )
+    return checks
