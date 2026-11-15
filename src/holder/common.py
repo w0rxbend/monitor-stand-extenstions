@@ -7,10 +7,12 @@ from build123d import (
     Box,
     Cylinder,
     GeomType,
+    Location,
     Part,
     Pos,
     RegularPolygon,
     Rot,
+    Vector,
     extrude,
     offset,
 )
@@ -18,6 +20,27 @@ from build123d import (
 Check = tuple[str, bool, str]
 VOL_EPS = 1e-6
 AXIS_TOL = 0.2
+
+
+def print_orientation(part: Part, bed_normal: tuple[float, float, float] = (0, 0, -1)) -> Part:
+    """Copy rotated so `bed_normal` points down, then centred in XY with the bed face on Z = 0.
+
+    Copied from Tigerbee 7inch accessories/_common.py. The installed part is not modified.
+    """
+    normal = Vector(*bed_normal).normalized()
+    down = Vector(0, 0, -1)
+    axis_dir = normal.cross(down)
+    if axis_dir.length > 1e-9:
+        axis = Axis((0, 0, 0), axis_dir)
+        turned = part.rotate(axis, normal.get_signed_angle(down, axis_dir))
+    elif normal.Z > 0:
+        turned = part.rotate(Axis.X, 180)
+    else:
+        turned = part.moved(Location())
+    bounds = turned.bounding_box()
+    moved = turned.moved(Location((-bounds.center().X, -bounds.center().Y, -bounds.min.Z)))
+    moved.label = part.label
+    return moved
 
 
 def hex_pocket(

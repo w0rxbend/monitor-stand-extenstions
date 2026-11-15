@@ -7,6 +7,7 @@ from build123d import Box, Part
 import holder.band as band
 import holder.block as block
 import holder.coupon as coupon
+from holder.common import print_orientation
 from holder.export import export_part
 from holder.params import Params
 from holder.preview import preview_part
@@ -45,9 +46,11 @@ def main() -> None:
     if not passed:
         raise SystemExit(1)
     out = Path("out")
+    orientations = {**coupon.PRINT, **band.PRINT, **block.PRINT}
     for part in (front, back, strip, band_front, band_back, brace):
-        export_part(part, out / part.label)
-        preview_part(part, out / f"{part.label}.png")
+        printed = print_orientation(part, orientations[part.label])
+        export_part(printed, out / part.label)
+        preview_part(printed, out / f"{part.label}.png")
 
 
 if __name__ == "__main__":

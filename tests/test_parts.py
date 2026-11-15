@@ -7,7 +7,7 @@ from build123d import Box, import_step
 
 from holder import band, block
 from holder.__main__ import placeholder_box
-from holder.common import box_from, hex_pocket, y_cylinder
+from holder.common import box_from, hex_pocket, print_orientation, y_cylinder
 from holder.coupon import (
     COUPON_BOLT_Z,
     build_back,
@@ -133,7 +133,11 @@ def test_block_checks_pass(band_halves: tuple, tmp_path: Path) -> None:
     ]
     assert not failed, failed
     assert block.PRINT["block"] == (-1, 0, 0)
-    step, _stl = export_part(part, tmp_path / part.label)
+    printed = print_orientation(part, block.PRINT["block"])
+    assert printed.label == part.label
+    assert abs(printed.bounding_box().min.Z) < 1e-4
+    assert printed.bounding_box().size.Z == pytest.approx(spec.block_size, abs=0.05)
+    step, _stl = export_part(printed, tmp_path / part.label)
     brought_back = import_step(step)
     assert abs(brought_back.volume - part.volume) / part.volume < 0.005
 
