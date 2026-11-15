@@ -6,12 +6,18 @@ import pytest
 from build123d import Align, Box, Cylinder, Edge, Pos, Vector
 
 from holder.common import (
+    captive_nut,
     cavity_check,
+    cavity_pieces,
     circles,
     clash_checks,
     coaxial_check,
+    cut,
+    hex_flat_widths,
     hex_pocket,
+    hex_pocket_checks,
     hole_axes,
+    intersection_volume,
     rod,
     wall_around,
 )
@@ -109,6 +115,45 @@ def test_cavity_check_catches_shifted_plugged_and_oversize():
     plugged = part + voids[1]
     for bad in (shifted, oversize, plugged):
         assert not cavity_check("bad", bad, voids, envelope).ok
+
+
+def test_hex_flat_widths_closed_and_slotted():
+    block = Box(30, 20, 10, align=BOTTOM)
+    closed = block - hex_pocket(AF, DEPTH, origin=(-7, 0, 3.5)) - rod(3.4, 12, origin=(-7, 0, -1))
+    part, _, _ = nut_block()
+    axis_closed = hole_axes(closed, 3.4)[0]
+    axis_slot = hole_axes(part, 3.4)[0]
+    assert hex_flat_widths(closed, axis_closed, AF) == pytest.approx([AF] * 3)
+    assert hex_flat_widths(part, axis_slot, AF) == pytest.approx([AF])
+    oversize, _, _ = nut_block(af=AF + 0.2)
+    assert hex_flat_widths(oversize, axis_slot, AF) == pytest.approx([AF + 0.2])
+    assert hex_flat_widths(plate_with_hole(5.0), hole_axes(plate_with_hole(5.0), 3.4)[0], AF) == []
+
+
+def test_hex_pocket_checks_count_and_af():
+    part, _, _ = nut_block()
+    axes = hole_axes(part, 3.4)
+    assert ok(hex_pocket_checks("M3", part, axes, AF, 1))
+    assert not ok(hex_pocket_checks("M3", part, axes, AF, 0))
+    oversize, _, _ = nut_block(af=AF + 0.2)
+    names = {c.name for c in hex_pocket_checks("M3", oversize, axes, AF, 1) if not c.ok}
+    assert names == {"M3 nut pocket AF"}
+
+
+def test_captive_nut_and_cavity_pieces():
+    envelope = Box(30, 20, 10, align=BOTTOM)
+    hole, pocket = captive_nut(
+        (7, 0, 10), (0, 0, -1), 3.4, 10, AF, DEPTH, 3.0, slot_dir=(1, 0, 0), slot_len=9
+    )
+    assert pocket.solids()[0].is_inside(Vector(7, 0, 10 - 3.0 - DEPTH / 2))  # nut 3 below top
+    assert not pocket.solids()[0].is_inside(Vector(7, 0, 10 - 2.9))
+    hole_piece, pocket_piece = cavity_pieces(envelope, [hole, pocket])
+    assert intersection_volume(hole_piece, pocket_piece) == pytest.approx(0, abs=1e-6)
+    assert len(hole_piece.solids()) == 2  # above and below the pocket
+    part = cut(envelope, [hole, pocket])
+    assert part.volume == pytest.approx(
+        envelope.volume - hole_piece.volume - pocket_piece.volume, rel=1e-9
+    )
 
 
 def test_clash_checks():

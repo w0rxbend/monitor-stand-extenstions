@@ -17,6 +17,7 @@ from build123d import (
     Box,
     Compound,
     Cylinder,
+    Edge,
     Face,
     Part,
     Plane,
@@ -36,6 +37,8 @@ TOUCH_EPS = 1e-3  # mm: solids closer than this touch
 RADIUS_TOL = 1e-3  # mm: a circle or cylinder matches a radius within this
 COAXIAL_TOL = 0.01  # mm: two axes closer than this count as coaxial
 ANGLE_TOL = 0.1  # degrees: two directions within this count as parallel
+AF_TOL = 0.01  # mm: a hex pocket's across-flats matches its design within this
+HEX_WINDOW = 0.5  # mm: a flat further than this from af/2 off its hole axis is not that pocket's
 
 Vec3 = tuple[float, float, float]
 
@@ -144,6 +147,55 @@ def hex_pocket(
     return plane_at(origin, axis, slot_dir).location * cutter
 
 
+def captive_nut(
+    face_point: Iterable[float],
+    into: Iterable[float],
+    hole_d: float,
+    through: float,
+    af: float,
+    nut_h: float,
+    nut_depth: float,
+    slot_dir: Iterable[float],
+    slot_len: float,
+) -> list[Part]:
+    """Cutters for a bolt that enters a face and threads into a captive nut, in the side-slot
+    form the block uses: [through-hole, hex pocket].
+
+    The hole starts at `face_point` and runs `through` mm along `into` (1 mm overshoot at
+    both ends). The pocket's top sits `nut_depth` below the face (that wall takes the bolt
+    load), it is `nut_h` deep, and its slot runs `slot_len` along `slot_dir` to a side face.
+    """
+    d = Vector(*into).normalized()
+    top = Vector(*face_point)
+    hole = rod(hole_d, through + 2, origin=top - d, axis=d)
+    pocket = hex_pocket(
+        af, nut_h, origin=top + d * nut_depth, axis=d, slot_dir=slot_dir, slot_len=slot_len
+    )
+    return [hole, pocket]
+
+
+def cavity_pieces(envelope: Shape, cutters: Iterable[Shape]) -> list[Part]:
+    """The voids `cutters` leave in `envelope`, as disjoint pieces: each cutter clipped to the
+    envelope, minus the cutters after it ([hole, nut] -> [hole outside the pocket, pocket]).
+    This is the form wall_around and cavity_check expect."""
+    cutters = list(cutters)
+    pieces = []
+    for k, cutter in enumerate(cutters):
+        piece = cutter & envelope
+        for later in cutters[k + 1 :]:
+            piece -= later
+        pieces.append(piece)
+    return pieces
+
+
+def cut(envelope: Part, cutters: Iterable[Shape]) -> Part:
+    """`envelope` minus every cutter."""
+    part = envelope
+    for cutter in cutters:
+        part -= cutter
+    return part
+
+
 # --- Measuring -----------------------------------------------------------------------------------
 
 
@@ -227,6 +279,55 @@ def coaxial_check(
         return Check(name, False, f"{counts}{want}")
     worst = max(min(axis_offset(a, b) for b in axes_b) for a in axes_a)
     return Check(name, worst <= tol, f"{counts}, worst offset {worst:.4f} mm (max {tol:g})")
+
+
+def hex_flat_widths(part: Shape, axis: Axis, af: float, window: float = HEX_WINDOW) -> list[float]:
+    """Across-flats widths of the hex pocket around `axis`, measured on the real faces.
+
+    A flat is a planar face parallel to the axis whose distance to the axis line is within
+    `window` of af/2. Each pair of parallel flats on opposite sides of the axis gives one
+    width (plane to plane). A closed hex gives 3 widths, a side-slot pocket 1 (the two
+    flats that run along the slot). No pocket, or one off by more than `window`, gives [].
+    """
+    d = axis.direction.normalized()
+    line = Edge.make_line(axis.position - d * 1000, axis.position + d * 1000)
+    flats = []
+    for face in part.faces():
+        if not face.is_planar:
+            continue
+        n = face.normal_at()
+        if abs(n.dot(d)) > 1e-6 or abs(face.distance_to(line) - af / 2) > window:
+            continue
+        flats.append((n, face.center()))
+    widths = []
+    for (n1, c1), (n2, c2) in combinations(flats, 2):
+        if not _parallel(n1, n2):
+            continue
+        s1 = (c1 - axis.position).dot(n1)
+        s2 = (c2 - axis.position).dot(n1)
+        if s1 * s2 < 0:
+            widths.append(abs(s1 - s2))
+    return widths
+
+
+def hex_pocket_checks(
+    label: str, part: Shape, axes: list[Axis], af: float, expected: int
+) -> list[Check]:
+    """How many of the hole `axes` have a hex pocket around them, and its across-flats."""
+    widths = [hex_flat_widths(part, ax, af) for ax in axes]
+    found = sum(bool(w) for w in widths)
+    checks = [count_is(f"{label} nut pockets", found, expected)]
+    if expected:
+        flat = [w for ws in widths for w in ws]
+        worst = max((abs(w - af) for w in flat), default=math.inf)
+        checks.append(
+            Check(
+                f"{label} nut pocket AF",
+                bool(flat) and worst <= AF_TOL,
+                f"{len(flat)} flat pair(s), worst {worst:.3f} mm off {af:g} (max {AF_TOL:g})",
+            )
+        )
+    return checks
 
 
 def min_distance(a: Shape, b: Shape) -> float:

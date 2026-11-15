@@ -87,6 +87,9 @@ def run(specs: list[PartSpec], p: Params, out: Path, png: bool) -> list[tuple[st
         group_parts = {s.name: parts[s.name] for s in members}
         contacts = [pair for pair in registry.CONTACTS if set(pair) <= group_parts.keys()]
         rows += [(f"assembly {group}", c) for c in clash_checks(group_parts, contacts)]
+        group_checks = registry.ASSEMBLY_CHECKS.get(group)
+        if group_checks and len(group_parts) == len(registry.assemblies()[group]):
+            rows += [(f"assembly {group}", c) for c in group_checks(group_parts, p)]
         if png and group_parts:
             assembly_sheet(group, group_parts, out)
     return rows

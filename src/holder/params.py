@@ -58,7 +58,7 @@ class Params:
     top_m3_nut_depth: float = 6.0  # top-face M3 nuts sit this deep (Task 4)
     top_quarter_nut_depth: float = 14.0  # top-face 1/4"-20 nut sits this deep (Task 4)
 
-    # Coupon: one band slice plus a PETG strip (Task 2).
+    # Coupon: one band slice (one seam bolt per seam, at mid-height) plus a PETG strip (Task 2).
     coupon_h: float = 12.0
 
     # Shared M3 pattern on the boss, the plate and the top face.
@@ -95,6 +95,8 @@ class Params:
             ("boss edge to M3 head recess", pattern_margin - self.m3_head_d / 2, TPU),
             ("block edge to M3 nut pocket", block_margin - m3_corner, PETG),
             ("block edge to 1/4 nut pocket", self.block_size / 2 - quarter_corner, PETG),
+            # The coupon has one seam bolt per seam at mid-height.
+            ("coupon edge to seam nut", self.coupon_h / 2 - m3_corner, TPU),
         ]
         for z in self.ear_bolt_z:
             walls.append((f"band bottom to seam nut at z={z:g}", z - m3_corner, TPU))
