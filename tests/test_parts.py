@@ -2,11 +2,26 @@
 
 from pathlib import Path
 
+import pytest
 from build123d import Box, import_step
 
 from holder.__main__ import placeholder_box
+from holder.band import ear_outer_ys, seam_axes, seam_hole
 from holder.common import hex_pocket
+from holder.coupon import (
+    COUPON_BOLT_Z,
+    build_back,
+    build_front,
+    build_strip,
+    checks_back,
+    checks_front,
+    checks_pair,
+    checks_strip,
+    m3_hex_tool,
+    quarter_hex_tool,
+)
 from holder.export import export_part
+from holder.params import Params
 from holder.preview import preview_part
 
 
@@ -21,6 +36,61 @@ def test_placeholder_box_exports_step_stl_and_png(tmp_path: Path) -> None:
     assert png.is_file() and png.stat().st_size > 0
     brought_back = import_step(step)
     assert abs(brought_back.volume - part.volume) / part.volume < 0.005
+
+
+def test_params_reject_non_finite_non_positive_and_thin_wall() -> None:
+    with pytest.raises(ValueError):
+        Params(column_w=float("nan"))
+    with pytest.raises(ValueError):
+        Params(band_h=-1)
+    with pytest.raises(ValueError):
+        Params(band_wall=1.0)
+
+
+def test_coupon_checks_pass(tmp_path: Path) -> None:
+    spec = Params()
+    front, back, strip = build_front(spec), build_back(spec), build_strip(spec)
+    for part, check in (
+        (front, checks_front),
+        (back, checks_back),
+        (strip, checks_strip),
+    ):
+        failed = [(name, detail) for name, ok, detail in check(part, spec) if not ok]
+        assert not failed, failed
+        step, _stl = export_part(part, tmp_path / part.label)
+        brought_back = import_step(step)
+        drift = abs(brought_back.volume - part.volume) / part.volume
+        assert drift < 0.005
+    failed = [(name, detail) for name, ok, detail in checks_pair(front, back, spec) if not ok]
+    assert not failed, failed
+
+
+def _failed(results: list[tuple[str, bool, str]], needle: str) -> bool:
+    return any(not ok and needle in name for name, ok, _detail in results)
+
+
+def test_shifted_seam_hole_fails_checks() -> None:
+    spec = Params()
+    front = build_front(spec)
+    x, z = seam_axes(spec, (COUPON_BOLT_Z,))[0]
+    y0, y1 = ear_outer_ys(spec)
+    plug = seam_hole(spec, x, z, y0 - 1, y1 + 1)
+    moved = seam_hole(spec, x, z + 15, y0 - 1, y1 + 1)
+    shifted = front + plug - moved
+    assert _failed(checks_front(shifted, spec), "seam through-hole open")
+
+
+def test_plugged_m3_pocket_fails_checks() -> None:
+    spec = Params()
+    plugged = build_strip(spec) + m3_hex_tool(spec)
+    assert _failed(checks_strip(plugged, spec), "m3 pocket open")
+
+
+def test_oversize_quarter_pocket_fails_checks() -> None:
+    spec = Params()
+    bigger = quarter_hex_tool(spec, af=spec.quarter_hex_af + 1.5)
+    opened = build_strip(spec) - bigger
+    assert _failed(checks_strip(opened, spec), "quarter pocket wall")
 
 
 def test_hex_pocket_is_a_void() -> None:
