@@ -1,0 +1,221 @@
+:root {
+  --paper: #fff;
+  --mist: #f5f5f7;
+  --ink: #1d1d1f;
+  --quiet: #424245;
+  --line: #d2d2d7;
+  --focus: #0071e3;
+  --measure: 40rem;
+  --wide: 72rem;
+  --pad: 1.5rem;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+}
+
+img { display: block; max-width: 100%; height: auto; }
+
+a { color: var(--focus); text-decoration-thickness: 1px; text-underline-offset: 0.15em; }
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.skip {
+  position: absolute;
+  left: var(--pad);
+  top: 0.5rem;
+  transform: translateY(-150%);
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0.5rem 0.75rem;
+}
+
+.skip:focus { transform: none; }
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  min-height: 3rem;
+  padding: 0.5rem var(--pad);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid transparent;
+}
+
+.word {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav a {
+  color: var(--quiet);
+  text-decoration: none;
+  line-height: 2.75rem;
+}
+
+.nav a:hover { color: var(--ink); }
+
+.hero {
+  padding: 4.5rem var(--pad) 2rem;
+  text-align: center;
+}
+
+.hero h1 {
+  max-width: 16ch;
+  margin: 0 auto;
+  font-size: clamp(2.75rem, 8vw, 5.5rem);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+.lede {
+  max-width: 28rem;
+  margin: 1rem auto 0;
+  color: var(--quiet);
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+.frame {
+  margin: 2.5rem auto 0;
+  max-width: var(--wide);
+}
+
+.frame img {
+  width: 100%;
+  background: var(--mist);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.facts li {
+  padding: 1.5rem var(--pad);
+  text-align: center;
+}
+
+.facts li + li { border-left: 1px solid var(--line); }
+
+.facts strong {
+  display: block;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.facts span { color: var(--quiet); }
+
+.chapter {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 5rem var(--pad) 1rem;
+}
+
+.chapter h2 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.chapter p {
+  max-width: var(--measure);
+  margin: 0 0 2rem;
+  color: var(--quiet);
+  font-size: 1.25rem;
+  line-height: 1.45;
+}
+
+.specs {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 5rem var(--pad) 4rem;
+}
+
+.specs h2 {
+  margin: 0 0 1.5rem;
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.specs dl {
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.specs div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 16rem) 1fr;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.specs dt { font-weight: 600; }
+
+.specs dd { margin: 0; color: var(--quiet); }
+
+.note {
+  max-width: var(--measure);
+  margin: 1.5rem 0 0;
+  color: var(--quiet);
+}
+
+.foot {
+  padding: 2rem var(--pad) 3rem;
+  color: var(--quiet);
+  text-align: center;
+}
+
+@media (max-width: 40rem) {
+  .facts { grid-template-columns: 1fr; }
+  .facts li + li { border-left: 0; border-top: 1px solid var(--line); }
+  .specs div { grid-template-columns: 1fr; gap: 0.25rem; }
+  .chapter { padding-top: 3.5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
