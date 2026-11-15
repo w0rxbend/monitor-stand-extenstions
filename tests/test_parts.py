@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 from build123d import Box, import_step
 
+from holder import band
 from holder.__main__ import placeholder_box
-from holder.band import ear_outer_ys, seam_axes, seam_hole
-from holder.common import hex_pocket
+from holder.common import hex_pocket, y_cylinder
 from holder.coupon import (
     COUPON_BOLT_Z,
     build_back,
@@ -72,10 +72,10 @@ def _failed(results: list[tuple[str, bool, str]], needle: str) -> bool:
 def test_shifted_seam_hole_fails_checks() -> None:
     spec = Params()
     front = build_front(spec)
-    x, z = seam_axes(spec, (COUPON_BOLT_Z,))[0]
-    y0, y1 = ear_outer_ys(spec)
-    plug = seam_hole(spec, x, z, y0 - 1, y1 + 1)
-    moved = seam_hole(spec, x, z + 15, y0 - 1, y1 + 1)
+    x, z = band.seam_axes(spec, (COUPON_BOLT_Z,))[0]
+    y0, y1 = band.ear_outer_ys(spec)
+    plug = band.seam_hole(spec, x, z, y0 - 1, y1 + 1)
+    moved = band.seam_hole(spec, x, z + 15, y0 - 1, y1 + 1)
     shifted = front + plug - moved
     assert _failed(checks_front(shifted, spec), "seam through-hole open")
 
@@ -91,6 +91,34 @@ def test_oversize_quarter_pocket_fails_checks() -> None:
     bigger = quarter_hex_tool(spec, af=spec.quarter_hex_af + 1.5)
     opened = build_strip(spec) - bigger
     assert _failed(checks_strip(opened, spec), "quarter pocket wall")
+
+
+@pytest.fixture(scope="module")
+def band_halves() -> tuple[Params, object, object]:
+    spec = Params()
+    front, back = band.build_halves(spec)
+    return spec, front, back
+
+
+def test_band_checks_pass(band_halves: tuple, tmp_path: Path) -> None:
+    spec, front, back = band_halves
+    for part, check in ((front, band.checks_front), (back, band.checks_back)):
+        failed = [(name, detail) for name, ok, detail in check(part, spec) if not ok]
+        assert not failed, failed
+        step, _stl = export_part(part, tmp_path / part.label)
+        brought_back = import_step(step)
+        drift = abs(brought_back.volume - part.volume) / part.volume
+        assert drift < 0.005
+    pair = band.checks_pair(front, back, spec)
+    failed = [(name, detail) for name, ok, detail in pair if not ok]
+    assert not failed, failed
+
+
+def test_plugged_boss_hole_fails_checks(band_halves: tuple) -> None:
+    spec, _front, back = band_halves
+    x, z = band.boss_hole_centers(spec)[0]
+    plug = y_cylinder(x, z, spec.column_d / 2 - 0.4, band.boss_face_y(spec) + 0.2, spec.m3_through)
+    assert _failed(band.checks_back(back + plug, spec), "boss hole open")
 
 
 def test_hex_pocket_is_a_void() -> None:

@@ -4,15 +4,8 @@ from pathlib import Path
 
 from build123d import Box, Part
 
-from holder.coupon import (
-    build_back,
-    build_front,
-    build_strip,
-    checks_back,
-    checks_front,
-    checks_pair,
-    checks_strip,
-)
+import holder.band as band
+import holder.coupon as coupon
 from holder.export import export_part
 from holder.params import Params
 from holder.preview import preview_part
@@ -34,15 +27,21 @@ def _report(results: list[tuple[str, bool, str]]) -> bool:
 
 def main() -> None:
     spec = Params()
-    front, back, strip = build_front(spec), build_back(spec), build_strip(spec)
-    passed = _report(checks_front(front, spec))
-    passed = _report(checks_back(back, spec)) and passed
-    passed = _report(checks_strip(strip, spec)) and passed
-    passed = _report(checks_pair(front, back, spec)) and passed
+    front = coupon.build_front(spec)
+    back = coupon.build_back(spec)
+    strip = coupon.build_strip(spec)
+    band_front, band_back = band.build_halves(spec)
+    passed = _report(coupon.checks_front(front, spec))
+    passed = _report(coupon.checks_back(back, spec)) and passed
+    passed = _report(coupon.checks_strip(strip, spec)) and passed
+    passed = _report(coupon.checks_pair(front, back, spec)) and passed
+    passed = _report(band.checks_front(band_front, spec)) and passed
+    passed = _report(band.checks_back(band_back, spec)) and passed
+    passed = _report(band.checks_pair(band_front, band_back, spec)) and passed
     if not passed:
         raise SystemExit(1)
     out = Path("out")
-    for part in (front, back, strip):
+    for part in (front, back, strip, band_front, band_back):
         export_part(part, out / part.label)
         preview_part(part, out / f"{part.label}.png")
 
