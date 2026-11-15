@@ -109,7 +109,7 @@ The phone ear width and hole size are from that photo scale. Passing CAD checks 
 - Each camera: 1 × 1/4"-20 screw, plate thickness plus about 5 mm
 - Each foot: 1 × 1/4"-20 screw into the mount-face nut
 - GoPro: one more 1/4"-20 screw as the stud, and a bought three-prong buckle
-- Phone: the bought clamp, plus 1 × M3×12 and one M3 nut through its ear
+- Phone: the bought clamp, plus one M3 nut and an M3 screw about as long as the ear plus 6 mm
 - Each hinge: 1 × M6 bolt, knob, and steel washers
 
 ## After the coupon
