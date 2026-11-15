@@ -18,7 +18,7 @@ A part module (band.py: band_front, band_back; block.py; coupon.py) defines
 
 Each PartSpec (holder.common) carries the PLAN.md contract:
 
-    name           NAME: unique; the file stem of out/<name>.step/.stl/.png
+    name           NAME: unique; the file stem of out/<name>.step/.stl/.3mf/.png
     material       MATERIAL: key into params.MATERIALS ("TPU95A" or "PETG")
     print_normal   PRINT: outward normal of the bed face, in assembly coordinates
     build(p)       -> Part: one valid solid in ASSEMBLY coordinates. Never exports.

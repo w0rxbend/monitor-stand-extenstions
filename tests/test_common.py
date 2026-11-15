@@ -31,9 +31,11 @@ from holder.common import (
 from holder.export import (
     STL_VOLUME_TOL,
     bed_area,
+    mesh_volume,
     print_rotation,
     stl_volume,
     to_print,
+    write_3mf,
     write_stl,
 )
 
@@ -252,6 +254,13 @@ def test_stl_volume_matches_the_solid(tmp_path):
     part = Cylinder(12, 30) - Cylinder(1.7, 40)  # curved inside and out
     path = write_stl(part, tmp_path / "ring.stl")
     assert stl_volume(path) == pytest.approx(part.volume, rel=STL_VOLUME_TOL)
+
+
+def test_3mf_volume_matches_the_solid(tmp_path):
+    part = Cylinder(12, 30) - Cylinder(1.7, 40)  # curved inside and out
+    path = write_3mf(part, tmp_path / "ring.3mf")
+    assert path.read_bytes()[:2] == b"PK"
+    assert mesh_volume(path) == pytest.approx(part.volume, rel=STL_VOLUME_TOL)
 
 
 @pytest.mark.parametrize(

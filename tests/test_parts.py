@@ -56,6 +56,7 @@ def test_export_checks_pass(spec, tmp_path):
     assert not failures(export_part(spec, built(spec.name), tmp_path))
     assert (tmp_path / f"{spec.name}.step").exists()
     assert (tmp_path / f"{spec.name}.stl").stat().st_size > 84
+    assert (tmp_path / f"{spec.name}.3mf").read_bytes()[:2] == b"PK"
 
 
 def assembly_parts(group: str):

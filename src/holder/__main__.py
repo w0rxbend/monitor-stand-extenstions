@@ -4,10 +4,11 @@
     python -m holder NAME ...     only these parts
     python -m holder --no-png     skip the previews (faster)
 
-Writes out/<name>.step (canonical), out/<name>.stl, out/<name>.png and
+Writes out/<name>.step (canonical), out/<name>.stl, out/<name>.3mf, out/<name>.png and
 out/assembly.png (out/assembly-<name>.png for other assemblies, e.g. the coupon).
+Copies the STL and 3MF of every part that passes into exports/ (the files in git).
 Exits non-zero if any check fails. A part that fails its checks gets a PNG for
-debugging but no STEP/STL, so a broken part is never left ready to print.
+debugging but no STEP/STL/3MF, so a broken part is never left ready to print.
 """
 
 import argparse
@@ -24,6 +25,8 @@ from holder.params import DEFAULT, Params
 from holder.preview import View, render_sheet, standard_sheet
 
 OUT = Path("out")
+EXPORTS = Path("exports")
+MESH_SUFFIXES = (".stl", ".3mf")
 
 
 def part_sheet(spec: PartSpec, part: Part, checks: list[Check], out: Path) -> Path:
@@ -59,6 +62,18 @@ def assembly_sheet(group: str, parts: dict[str, Part], refs: dict[str, Part], ou
     )
 
 
+def _publish_meshes(name: str, out: Path) -> None:
+    EXPORTS.mkdir(parents=True, exist_ok=True)
+    for suffix in MESH_SUFFIXES:
+        (EXPORTS / f"{name}{suffix}").write_bytes((out / f"{name}{suffix}").read_bytes())
+
+
+def _drop_print_files(name: str, out: Path) -> None:
+    for directory in (out, EXPORTS):
+        for suffix in (".step", *MESH_SUFFIXES):
+            (directory / f"{name}{suffix}").unlink(missing_ok=True)
+
+
 def print_table(rows: list[tuple[str, Check]]) -> None:
     w_part = max(len(r[0]) for r in rows)
     w_name = max(len(r[1].name) for r in rows)
@@ -77,10 +92,10 @@ def run(specs: list[PartSpec], p: Params, out: Path, png: bool) -> list[tuple[st
         checks = list(spec.checks(part, p))
         if all(c.ok for c in checks):
             checks += export_part(spec, part, out)
+            _publish_meshes(spec.name, out)
         else:
-            for suffix in (".step", ".stl"):
-                (out / f"{spec.name}{suffix}").unlink(missing_ok=True)
-            print(f"{spec.name}: checks failed, STEP/STL not written")
+            _drop_print_files(spec.name, out)
+            print(f"{spec.name}: checks failed, STEP/STL/3MF not written")
         rows += [(spec.name, c) for c in checks]
         if png:
             part_sheet(spec, part, checks, out)

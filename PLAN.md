@@ -72,11 +72,12 @@ src/holder/
   common.py             # hex_pocket(), copied from Tigerbee 7inch _common.py
   band.py  block.py  coupon.py
   # each part module: NAME, MATERIAL, PRINT (bed-face normal), build(p) -> Part, checks(part, p) -> [(name, ok, measured)]
-  export.py             # STEP (canonical) + STL; absolute mesh deflection fix copied from Tigerbee 7inch export.py
+  export.py             # STEP (canonical) + STL + 3MF; absolute mesh deflection fix copied from Tigerbee 7inch export.py
   preview.py            # ExportSVG to PNG via rsvg-convert, copied from Tigerbee 7inch accessories/_export.py
-  __main__.py           # `uv run python -m holder` builds all, runs checks(), exports to out/
+  __main__.py           # `uv run python -m holder` builds all, runs checks(), writes out/ and copies STL + 3MF to exports/
 tests/test_parts.py     # runs checks() on every part, plus negative tests
 out/                    # generated files, not committed
+exports/                # committed STL and 3MF for every part
 ```
 
 Rule from V2: part builders never export, and exporters never repair geometry.
@@ -99,7 +100,7 @@ Rule from V2: part builders never export, and exporters never repair geometry.
 | 2 | `coupon`: one 12 mm band slice (both halves, 1 bolt per seam) plus a PETG strip with the M3 and 1/4" hex pockets and through-holes. | Checks pass. The user prints it (~25 min). The band clamps with seam gap left. The nuts press in and hold. |
 | 3 | `band_front`, `band_back`: ears, nut pockets, 1 mm grip ribs every 5 mm, boss with head recesses. | Checks pass. |
 | 4 | `block`: plate nuts for the boss; top face nuts at 2 depths (1/4" under a 2.5 mm top wall, M3 at 10 mm) so the pockets do not cut into each other. | Checks pass, including ≥ 1.5 mm wall between pockets, a 6 mm 1/4" screw thread engaging the top nut, and both M3x16 stacks (seam, boss) passing fully through their nuts. No clash with the band. |
-| 5 | Final export and README with print notes and hardware. | `out/` holds STEP and STL for every part, plus PNG previews. |
+| 5 | Final export and README with print notes and hardware. | `out/` holds STEP, STL, 3MF and PNG. `exports/` holds the committed STL and 3MF. |
 
 After the coupon: band too loose, lower `column_d` by 1. Band does not fit, raise the binding dimension by 1. Nut pocket too tight, add 0.1 to its AF. Rebuild.
 

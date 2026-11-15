@@ -1,19 +1,23 @@
-"""STEP (canonical) and STL export in print orientation, with round-trip checks.
+"""STEP (canonical), STL and 3MF export in print orientation, with round-trip checks.
 
 The exporter applies only a rigid transform (rotation + translation) into print
 orientation: the PRINT bed-face normal points to -Z and the bed face sits at Z=0.
 It never repairs geometry.
 
-STL meshing uses ABSOLUTE linear/angular deflection. build123d 0.11 meshes with relative
-deflection, which inflated the mesh volume by about 0.5% in an earlier project.
+STL and 3MF meshing use ABSOLUTE linear/angular deflection. build123d 0.11 meshes
+with relative deflection, which inflated the mesh volume by about 0.5% in an earlier
+project. Mesher.add_shape deep-copies the solid and then calls Mesher._mesh_shape,
+so the absolute mesh has to be applied inside that call.
 """
 
 import math
 import struct
+import zipfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 import numpy as np
-from build123d import Location, Part, Shape, Vector, export_step, import_step
+from build123d import Location, Mesher, Part, Shape, Unit, Vector, export_step, import_step
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.BRepTools import BRepTools
 from OCP.StlAPI import StlAPI_Writer
@@ -82,6 +86,76 @@ def write_stl(
     return path
 
 
+def _absolute_mesh_shape(shape: Shape, linear_deflection: float, angular_deflection: float):
+    """Absolute mesh, then the stock reader. The stock call remeshes; OCCT keeps the finer one."""
+    BRepMesh_IncrementalMesh(shape.wrapped, linear_deflection, False, angular_deflection, True)
+    return _STOCK_MESH_SHAPE(shape, linear_deflection, angular_deflection)
+
+
+_STOCK_MESH_SHAPE = Mesher._mesh_shape
+
+
+def write_3mf(
+    shape: Shape,
+    path: Path,
+    linear: float = STL_LINEAR_DEFLECTION,
+    angular: float = STL_ANGULAR_DEFLECTION,
+) -> Path:
+    """3MF meshed with the same absolute deflection as write_stl."""
+    Mesher._mesh_shape = staticmethod(_absolute_mesh_shape)
+    try:
+        mesher = Mesher(unit=Unit.MM)
+        mesher.add_shape(shape, linear_deflection=linear, angular_deflection=angular)
+        mesher.write(path)
+    finally:
+        Mesher._mesh_shape = _STOCK_MESH_SHAPE
+    if path.read_bytes()[:2] != b"PK":
+        raise RuntimeError(f"3MF export failed: {path}")
+    return path
+
+
+def _signed_tet(
+    a: tuple[float, float, float],
+    b: tuple[float, float, float],
+    c: tuple[float, float, float],
+) -> float:
+    cross_x = b[1] * c[2] - b[2] * c[1]
+    cross_y = b[2] * c[0] - b[0] * c[2]
+    cross_z = b[0] * c[1] - b[1] * c[0]
+    return (a[0] * cross_x + a[1] * cross_y + a[2] * cross_z) / 6
+
+
+def _local_tag(root: ElementTree.Element, name: str) -> str:
+    if root.tag.startswith("{"):
+        uri = root.tag[1 : root.tag.index("}")]
+        return f"{{{uri}}}{name}"
+    return name
+
+
+def mesh_volume(path: Path) -> float:
+    """Enclosed volume of a 3MF mesh (signed tetrahedra from the origin)."""
+    with zipfile.ZipFile(path) as archive:
+        model_name = next(name for name in archive.namelist() if name.endswith(".model"))
+        root = ElementTree.fromstring(archive.read(model_name))
+    volume = 0.0
+    triangles = 0
+    for mesh in root.iter(_local_tag(root, "mesh")):
+        vertices = [
+            (float(node.attrib["x"]), float(node.attrib["y"]), float(node.attrib["z"]))
+            for node in mesh.iter(_local_tag(root, "vertex"))
+        ]
+        for tri in mesh.iter(_local_tag(root, "triangle")):
+            volume += _signed_tet(
+                vertices[int(tri.attrib["v1"])],
+                vertices[int(tri.attrib["v2"])],
+                vertices[int(tri.attrib["v3"])],
+            )
+            triangles += 1
+    if triangles == 0:
+        raise ValueError(f"3MF has no triangles: {path}")
+    return volume
+
+
 def stl_volume(path: Path) -> float:
     """Enclosed volume of a binary STL (signed tetrahedra from the origin)."""
     data = Path(path).read_bytes()
@@ -104,16 +178,18 @@ def relative_error(measured: float, reference: float) -> float:
 
 
 def export_part(spec: PartSpec, part: Part, out_dir: Path) -> list[Check]:
-    """Write out_dir/<name>.step and .stl in print orientation; return the export checks."""
+    """Write out_dir/<name>.step, .stl and .3mf in print orientation; return the export checks."""
     out_dir.mkdir(parents=True, exist_ok=True)
     printed = to_print(part, spec.print_normal)
     volume = part.volume
     step_path = write_step(printed, out_dir / f"{spec.name}.step")
     stl_path = write_stl(printed, out_dir / f"{spec.name}.stl")
+    mesh_path = write_3mf(printed, out_dir / f"{spec.name}.3mf")
 
     step_vol, step_solids = step_volume(step_path)
     step_err = relative_error(step_vol, volume)
     stl_err = relative_error(stl_volume(stl_path), volume)
+    mesh_err = relative_error(mesh_volume(mesh_path), volume)
     return [
         at_least("export: bed face on Z=0", bed_area(printed), 1.0, "mm2"),
         Check(
@@ -122,4 +198,5 @@ def export_part(spec: PartSpec, part: Part, out_dir: Path) -> list[Check]:
             f"{step_solids} solid(s), volume err {step_err:.3%} (max {STEP_VOLUME_TOL:.1%})",
         ),
         at_most("export: STL volume err", stl_err * 100, STL_VOLUME_TOL * 100, "%"),
+        at_most("export: 3MF volume err", mesh_err * 100, STL_VOLUME_TOL * 100, "%"),
     ]

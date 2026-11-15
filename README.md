@@ -32,9 +32,15 @@ capabilities dropped, read-only root, the repo mounted at `/work`.
 ./dock ruff format . && ./dock ruff check .
 ```
 
-`out/` gets `<part>.step` (canonical), `<part>.stl` and `<part>.png` for every part, plus
-`assembly.png` (holder) and `assembly-coupon.png`. A part that fails a check gets a PNG for
-debugging but no STEP/STL.
+`out/` gets `<part>.step` (canonical), `<part>.stl`, `<part>.3mf` and `<part>.png` for every
+part, plus `assembly.png` (holder) and `assembly-coupon.png`. A part that fails a check gets
+a PNG for debugging but no STEP, STL or 3MF.
+
+`exports/` is the print set checked into the branch: `<part>.stl` and `<part>.3mf` for every
+part in the table below. The same command rewrites those two files when the part's checks
+pass, and deletes them when the checks fail. Open the 3MF in a slicer (PrusaSlicer, OrcaSlicer,
+Bambu Studio). The STL is the same mesh for a slicer that does not read 3MF. STEP stays in
+`out/` and is not committed.
 
 ## Parts
 
