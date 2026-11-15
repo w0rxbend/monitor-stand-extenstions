@@ -58,16 +58,35 @@ def test_export_checks_pass(spec, tmp_path):
     assert (tmp_path / f"{spec.name}.stl").stat().st_size > 84
 
 
+def assembly_parts(group: str):
+    """Every printed part of an assembly plus its reference solids (the column)."""
+    parts = {spec.name: built(spec.name) for spec in registry.assemblies()[group]}
+    return {**parts, **registry.references(group, DEFAULT)}
+
+
+def test_column_is_a_reference_not_a_printed_part():
+    for group in ("holder", "coupon"):
+        refs = registry.references(group, DEFAULT)
+        assert set(refs) == {band.COLUMN_NAME}
+        assert band.COLUMN_NAME not in IDS  # so it is never exported
+        column = refs[band.COLUMN_NAME]
+        assert column.is_valid and len(column.solids()) == 1
+    # Taller than the band at both ends.
+    col = registry.references("holder", DEFAULT)[band.COLUMN_NAME]
+    span = [v.Z for v in col.vertices()]
+    assert min(span) < 0 and max(span) > DEFAULT.band_h
+
+
 @pytest.mark.parametrize("group", sorted(registry.assemblies()))
 def test_assembly_has_no_clashes(group):
-    parts = {spec.name: built(spec.name) for spec in registry.assemblies()[group]}
+    parts = assembly_parts(group)
     contacts = [pair for pair in registry.CONTACTS if set(pair) <= parts.keys()]
     assert not failures(clash_checks(parts, contacts))
 
 
 @pytest.mark.parametrize("group", sorted(registry.ASSEMBLY_CHECKS))
 def test_assembly_checks_pass(group):
-    parts = {spec.name: built(spec.name) for spec in registry.assemblies()[group]}
+    parts = assembly_parts(group)
     checks = registry.ASSEMBLY_CHECKS[group](parts, DEFAULT)
     assert checks
     assert not failures(checks)
@@ -105,7 +124,49 @@ def strip(p, shift_quarter=None, plug_m3=False):
     return cut(coupon.strip_envelope(), [c for cs in cutters.values() for c in cs])
 
 
+BOSS_DEFECT = "boss bolt x=10 z=6"
+
+
+def full_band_back(p, shift_boss=None, plug_recess=False):
+    """The full back half (band_back) with one defect at boss bolt x=+10 z=6: the through-hole
+    moved by `shift_boss`, or the head recess left out."""
+    cutters = []
+    for label, cs in band.cutter_groups(p, band.BACK, p.band_h, p.ear_bolt_z, boss=True):
+        if label == BOSS_DEFECT:
+            hole, recess, relief = cs
+            if shift_boss:
+                hole = Pos(*shift_boss) * hole
+            cs = [hole, relief] if plug_recess else [hole, recess, relief]
+        cutters += cs
+    return cut(band.envelope(p, band.BACK, p.band_h, boss=True), cutters)
+
+
 NEGATIVE = {
+    "band_back shifted boss hole": (
+        band.checks_back,
+        lambda: full_band_back(DEFAULT, shift_boss=(0.3, 0, 0)),
+        "M3 boss holes on design axes",
+    ),
+    "band_back plugged head recess": (
+        band.checks_back,
+        lambda: full_band_back(DEFAULT, plug_recess=True),
+        "M3 head recesses",
+    ),
+    "band_back shallow head recess": (
+        band.checks_back,
+        lambda: band.build_back(replace(DEFAULT, m3_head_extra=0.2)),
+        "boss bolt heads below the inner face",
+    ),
+    "band_back oversize nut pocket": (
+        band.checks_back,
+        lambda: band.build_back(replace(DEFAULT, m3_hex_af=DEFAULT.m3_hex_af + 0.2)),
+        "M3 nut pocket AF",
+    ),
+    "band_front low ribs": (
+        band.checks_front,
+        lambda: band.build_front(replace(DEFAULT, rib_h=0.6)),
+        "grip rib height over the inner face",
+    ),
     "band shifted hole": (
         coupon.checks_back,
         lambda: band_back(DEFAULT, shift_hole=(0, 0, 0.3)),
@@ -159,6 +220,21 @@ def test_shifted_seam_hole_fails_the_seam_coaxial_check():
     assert failed == {"seam +X: bolt holes coaxial across the seam"}
 
 
+def test_ribs_into_the_column_fail_the_clash_check():
+    # Built for a column 1 mm shallower: the front rib tips reach 0.25 mm into the real one.
+    front = band.build_front(replace(DEFAULT, column_d=DEFAULT.column_d - 1))
+    parts = {band.FRONT_NAME: front, **registry.references("holder", DEFAULT)}
+    failed = failed_names(clash_checks(parts))
+    assert failed == {f"{band.FRONT_NAME} / {band.COLUMN_NAME}: gap"}
+
+
+def test_short_seam_bolt_fails_the_hardware_check():
+    p = replace(DEFAULT, seam_bolt_len=12.0)  # the stack needs 14.3 mm
+    front, back = built(coupon.FRONT_NAME), built(coupon.BACK_NAME)
+    failed = failed_names(band.seam_hardware_checks(front, back, p, coupon.bolt_zs(p)))
+    assert failed == {f"seam {s} z=6: M3x12 + washer + nut fit the ear stack" for s in ("-X", "+X")}
+
+
 def test_small_seam_gap_fails_the_clamp_reserve():
     p = replace(DEFAULT, seam_gap=1.0)  # 0.5 mm left once both halves sit on the column
     parts = {coupon.FRONT_NAME: coupon.build_front(p), coupon.BACK_NAME: coupon.build_back(p)}
@@ -180,6 +256,8 @@ def test_default_params_valid():
         ("ear_bolt_z", (9.0, math.nan)),
         ("ear_bolt_z", (-9.0, 26.0)),
         ("ear_bolt_z", ()),
+        ("rib_pitch", 2.5),  # ribs 3 mm wide at the face would overlap
+        ("boss_w", 36.0),  # boss taller than the 35 mm band
     ],
 )
 def test_validate_rejects_bad_values(field, value):

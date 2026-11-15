@@ -12,6 +12,8 @@ top face: the hole enters the top face, the nut sits top_m3_nut_depth (M3) or
 top_quarter_nut_depth (1/4") below it and slides in from a side face.
 
 The strip sits off to the side (+X) of the band in assembly coordinates; it has no mate.
+The slice carries the grip ribs of the full band (rib_zs centers them on coupon_h: 2 ribs),
+but no boss. The column is a reference solid of the coupon assembly, as in the holder.
 """
 
 from build123d import Align, Axis, Box, Part, Pos
@@ -69,7 +71,7 @@ def checks_back(part: Part, p: Params) -> list[Check]:
 # the slots point up, so no pocket has a roof; the holes lie horizontal (PLAN.md "Print":
 # they print about 0.15 mm small, which the through-hole sizes cover).
 
-STRIP_M3_X = 52.0  # M3 axis; the band ears end at x = 34.35
+STRIP_M3_X = 52.0  # M3 axis; the band ears end at x = 35.35
 STRIP_PITCH = 15.0  # M3 axis to 1/4" axis, along +X
 STRIP_X_MIN = STRIP_M3_X - 7.0  # 4.15 mm past the M3 pocket flat
 STRIP_X_MAX = STRIP_M3_X + STRIP_PITCH + 9.0  # 3.3 mm past the 1/4" pocket flat
@@ -156,3 +158,11 @@ PARTS = [
     PartSpec(STRIP_NAME, PETG, STRIP_PRINT, build_strip, checks_strip, ASSEMBLY),
 ]
 ASSEMBLY_CHECKS = {ASSEMBLY: assembly_checks}
+
+
+def references(p: Params) -> dict[str, Part]:
+    """The column as a reference solid, reaching past the slice (drawn and clash-checked)."""
+    return {band.COLUMN_NAME: band.column(p, p.coupon_h)}
+
+
+REFERENCES = {ASSEMBLY: references}

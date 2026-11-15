@@ -14,6 +14,7 @@ from typing import NamedTuple
 from build123d import (
     Align,
     Axis,
+    BoundBox,
     Box,
     Compound,
     Cylinder,
@@ -39,6 +40,7 @@ COAXIAL_TOL = 0.01  # mm: two axes closer than this count as coaxial
 ANGLE_TOL = 0.1  # degrees: two directions within this count as parallel
 AF_TOL = 0.01  # mm: a hex pocket's across-flats matches its design within this
 HEX_WINDOW = 0.5  # mm: a flat further than this from af/2 off its hole axis is not that pocket's
+NEAR_MARGIN = 1.0  # mm: cavity_deviation reports deviations exactly up to this
 
 Vec3 = tuple[float, float, float]
 
@@ -240,6 +242,12 @@ def cylinders(shape: Shape, radius: float | None = None, direction=None) -> list
     return found
 
 
+def planar_faces(shape: Shape, normal: Iterable[float]) -> list[Face]:
+    """Planar faces whose normal is parallel (either sense) to `normal`."""
+    n = Vector(*normal)
+    return [f for f in shape.faces() if f.is_planar and _parallel(f.normal_at(), n)]
+
+
 def axis_offset(a: Axis, b: Axis) -> float:
     """Distance between two parallel axes; infinity if they are not parallel."""
     if not _parallel(a.direction, b.direction):
@@ -342,23 +350,62 @@ def _lies_on(face: Face, cavity: Shape, tol: float) -> bool:
     return bool(points) and all(cavity.distance_to(pt) <= tol for pt in points)
 
 
-def wall_around(part: Shape, voids: Shape | Iterable[Shape], touch: float = TOUCH_EPS) -> float:
+def _box_gap(a: BoundBox, b: BoundBox) -> float:
+    """Distance between two bounding boxes (0 if they overlap). OCCT pads boxes, so this is a
+    lower bound of the distance between the shapes inside: used only to skip faces that
+    cannot matter, never as a measurement."""
+    d = [
+        max(lo_a - hi_b, lo_b - hi_a, 0.0)
+        for lo_a, hi_a, lo_b, hi_b in (
+            (a.min.X, a.max.X, b.min.X, b.max.X),
+            (a.min.Y, a.max.Y, b.min.Y, b.max.Y),
+            (a.min.Z, a.max.Z, b.min.Z, b.max.Z),
+        )
+    ]
+    return math.hypot(*d)
+
+
+def near_faces(shape: Shape, other: Shape, within: float) -> Compound | None:
+    """The faces of `shape` that may lie within `within` of `other` (box prefilter: it keeps
+    every face that does, and maybe a few more), as one compound; None if there are none."""
+    box = other.bounding_box()
+    faces = [f for f in shape.faces() if _box_gap(f.bounding_box(), box) <= within]
+    return Compound(faces) if faces else None
+
+
+def wall_around(
+    part: Shape,
+    voids: Shape | Iterable[Shape],
+    touch: float = TOUCH_EPS,
+    open_to: Shape | None = None,
+) -> float:
     """Thinnest wall between one cavity and the rest of the part's surface (solid distance).
 
     `voids` are the connected pieces of one cavity, each as it sits in the part (clip any
     cutter overshoot first), e.g. [bolt hole, nut pocket]. The cavity's own faces are
     skipped. Each piece is then measured against every other face it does not touch, so
     a hole that opens into the bed face still counts the nut pocket's wall to that face.
+
+    `open_to` is a designed space the cavity opens into over a large mouth (a head recess
+    opening into the band's inside). Faces lying on its boundary are skipped too: next to
+    the mouth they meet the cavity at an edge, and their distance is air, not a wall.
     """
     pieces = [voids] if isinstance(voids, Shape) else list(voids)
     cavity = Compound(pieces)
-    walls = []
-    for face in part.faces():
+    box = cavity.bounding_box()
+    # Nearest faces first; stop once even the box bound is no closer than the best wall.
+    faces = sorted((_box_gap(f.bounding_box(), box), i, f) for i, f in enumerate(part.faces()))
+    best = math.inf
+    for bound, _, face in faces:
+        if bound >= best:
+            break
         if cavity.distance_to(face) <= touch and _lies_on(face, cavity, touch):
             continue  # a face of the cavity itself
+        if open_to is not None and _lies_on(face, open_to, touch):
+            continue  # a face of the space the cavity opens into
         gaps = (piece.distance_to(face) for piece in pieces)
-        walls.extend(g for g in gaps if g > touch)
-    return min(walls, default=math.inf)
+        best = min([best, *(g for g in gaps if g > touch)])
+    return best
 
 
 def face_samples(face: Face, n: int = 5) -> list[Vector]:
@@ -394,11 +441,16 @@ def cavity_deviation(
     worst, count = 0.0, 0
     for k, piece in enumerate(pieces):
         others = pieces[:k] + pieces[k + 1 :]
+        # Only nearby faces can decide: exact up to NEAR_MARGIN, larger values stay larger.
+        env_near = near_faces(envelope, piece, TOUCH_EPS)
+        part_near = near_faces(part, piece, NEAR_MARGIN)
         for face in piece.faces():
             for pt in face_samples(face):
-                if envelope.distance_to(pt) <= TOUCH_EPS or any(_inside(o, pt) for o in others):
+                if env_near is not None and env_near.distance_to(pt) <= TOUCH_EPS:
+                    continue  # in an opening
+                if any(_inside(o, pt) for o in others):
                     continue
-                worst = max(worst, part.distance_to(pt))
+                worst = max(worst, part_near.distance_to(pt) if part_near is not None else math.inf)
                 count += 1
     return worst, count
 
@@ -407,6 +459,31 @@ def cavity_check(name: str, part: Shape, pieces, envelope: Shape, tol: float = T
     worst, count = cavity_deviation(part, pieces, envelope)
     ok = count > 0 and worst <= tol
     return Check(name, ok, f"walls off design by {worst:.4f} mm (max {tol:g}), {count} points")
+
+
+def material_spans(part: Shape, origin: Iterable[float], direction: Iterable[float], length: float):
+    """Where a probe line runs through solid material: sorted (start, end) distances along
+    `direction` from `origin`, for a line `length` long. Exact (boolean of the part with the
+    line), so it measures stacks such as ear + gap + ear along a bolt."""
+    o, d = Vector(*origin), Vector(*direction).normalized()
+    common = part & Edge.make_line(o, o + d * length)
+    spans = []
+    for edge in common.edges() if common is not None else []:
+        a, b = ((edge.position_at(t) - o).dot(d) for t in (0, 1))
+        spans.append((min(a, b), max(a, b)))
+    return sorted(spans)
+
+
+def contact_faces(part: Shape, other: Shape, touch: float = TOUCH_EPS) -> list[Face]:
+    """Faces of `part` that touch `other` over an area, not just along an edge: at least one
+    interior sample point (face_samples) lies within `touch` of `other`."""
+    found = []
+    for face in part.faces():
+        if face.distance_to(other) > touch:
+            continue
+        if any(other.distance_to(pt) <= touch for pt in face_samples(face)):
+            found.append(face)
+    return found
 
 
 def intersection_volume(a: Shape, b: Shape) -> float:

@@ -43,10 +43,14 @@ class Params:
     ear_len: float = 10.0  # how far an ear sticks out of the band
     ear_t: float = 5.0  # ear thickness along the seam bolt
     ear_bolt_z: tuple[float, ...] = (9.0, 26.0)  # seam bolt heights above the band bottom
-    rib_h: float = 1.0  # grip ribs on the band inner face (Task 3)
+    # Grip ribs: horizontal rings on the band inner face, rib_h proud of it, one every rib_pitch.
+    # Trapezoid section: rib_tip wide at the column, 45 degree flanks (print without support).
+    rib_h: float = 1.0
     rib_pitch: float = 5.0
+    rib_tip: float = 1.0  # estimated: PLAN says "1 mm grip ribs"; contact width not given
 
-    # Boss on the back half (4 x M3 to the block).
+    # Boss on the back half (4 x M3 to the block): a boss_w square face (X x Z), boss_depth
+    # proud of the band's outer back face, bottom flush with the band bottom (the bed face).
     boss_w: float = 32.0
     boss_depth: float = 12.0
 
@@ -67,13 +71,19 @@ class Params:
     # Fasteners (pocket and hole sizes already include the print fit).
     m3_through: float = 3.4
     m3_head_d: float = 6.6  # head recess diameter
-    m3_head_h: float = 2.0  # head recess depth
+    m3_head_h: float = 2.0  # head recess depth = the head height it is sized for
     m3_head_extra: float = 1.0  # extra depth so the heads sit below the band face
     m3_hex_af: float = 5.7  # nut pocket across flats
     m3_hex_h: float = 2.6  # nut pocket depth
     quarter_hex_af: float = 11.4  # estimated: 7/16" nut 11.1 + fit, new value; confirm with coupon
     quarter_hex_h: float = 5.8  # estimated: nut 5.6 + fit, new value; confirm with coupon
     quarter_through: float = 6.6  # 1/4" = 6.35 plus clearance
+
+    # Seam hardware (PLAN.md "Hardware": 4 x M3x20 + washer + nut), standard part sizes.
+    seam_bolt_len: float = 20.0  # M3x20, length under the head
+    m3_washer_d: float = 7.0  # DIN 125-A M3 washer
+    m3_washer_t: float = 0.5
+    m3_nut_h: float = 2.4  # ISO 4032 M3 nut
 
     @property
     def m3_head_recess_depth(self) -> float:
@@ -125,6 +135,10 @@ class Params:
             wall_min = MATERIALS[material].wall_min
             if thickness < wall_min:
                 raise ValueError(f"{name}: {thickness:.3f} mm < {material} wall_min {wall_min} mm")
+        if self.rib_tip + 2 * self.rib_h > self.rib_pitch:
+            raise ValueError("rib_pitch: neighbouring grip ribs overlap at the band face")
+        if self.boss_w > self.band_h:
+            raise ValueError("boss_w: the boss is taller than the band")
         return self
 
 

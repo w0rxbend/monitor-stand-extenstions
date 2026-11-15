@@ -1,14 +1,20 @@
-"""Part registry: the one place that lists every part and the intended contacts.
+"""Part registry: the one place that lists every part, the reference solids and the
+intended contacts.
 
 Part module contract
 --------------------
-A part module (coupon.py now; band and block parts later) defines
+A part module (band.py: band_front, band_back; coupon.py; the block later) defines
 
     PARTS: list[PartSpec]    one entry per printed part
     ASSEMBLY_CHECKS          optional {assembly: fn(parts: dict[name, Part], p) -> list[Check]}
                              for checks that need several parts at once (e.g. seam holes
                              coaxial across the two band halves). They run when every part
                              of that assembly is built, after the pairwise clash checks.
+                             `parts` includes the assembly's reference solids.
+    REFERENCES               optional {assembly: fn(p) -> dict[name, Part]}: solids that are
+                             not printed (the column), in assembly coordinates. They are
+                             clash-checked with the parts and drawn in the assembly preview,
+                             but never exported.
 
 Each PartSpec (holder.common) carries the PLAN.md contract:
 
@@ -23,25 +29,26 @@ Each PartSpec (holder.common) carries the PLAN.md contract:
                    where the band sits.
 
 A single-part module also exposes NAME, MATERIAL, PRINT, build and checks at module level.
-A multi-part module (coupon.py: three parts; the band: front + back) writes one
+A multi-part module (coupon.py: three parts; band.py: front + back) writes one
 build/checks pair per part, e.g. build_front / checks_front, and lists one PartSpec per
-part. Shared geometry lives in its own module (band.py: the band cross-section, ears and
-seam bolts, used by the coupon and the full band) or, for generic cutters and
-measurements, in common.py.
+part. Shared geometry lives in band.py (the band cross-section, ribs, ears, seam bolts and
+boss, used by the coupon and the full band) or, for generic cutters and measurements, in
+common.py.
 
-To add a module: import it here and append it to MODULES. Parts of one assembly that are
-meant to touch go into CONTACTS; every other pair must keep a gap (common.clash_checks).
+To add a module: import it here and append it to MODULES. Parts (or reference solids) of
+one assembly that are meant to touch as assembled go into CONTACTS; every other pair must
+keep a gap (common.clash_checks).
 """
 
 from collections.abc import Callable
 
 from build123d import Part
 
-from holder import coupon
+from holder import band, coupon
 from holder.common import Check, PartSpec
-from holder.params import Params
+from holder.params import DEFAULT, Params
 
-MODULES = (coupon,)
+MODULES = (band, coupon)
 
 PARTS: list[PartSpec] = [spec for module in MODULES for spec in module.PARTS]
 
@@ -50,7 +57,15 @@ ASSEMBLY_CHECKS: dict[str, AssemblyChecks] = {
     group: fn for module in MODULES for group, fn in getattr(module, "ASSEMBLY_CHECKS", {}).items()
 }
 
-# Intended contacts between parts of one assembly, by part name.
+References = Callable[[Params], dict[str, Part]]
+REFERENCES: dict[str, References] = {
+    group: fn for module in MODULES for group, fn in getattr(module, "REFERENCES", {}).items()
+}
+
+# Intended contacts between parts of one assembly as assembled, by name.
+# Band halves vs column: none as assembled. Each half keeps the TPU fit (0.25 mm) to the
+# column; the contact (rib tips vs column) only exists once the seam bolts pull the halves
+# on, and band.seam_checks checks it in that clamped position (band.CLAMP_CONTACTS).
 # Example for Task 4: ("band_back", "block") -- the boss face sits on the plate.
 CONTACTS: tuple[tuple[str, str], ...] = ()
 
@@ -70,16 +85,28 @@ def assemblies(specs: list[PartSpec] | None = None) -> dict[str, list[PartSpec]]
     return groups
 
 
+def references(group: str, p: Params) -> dict[str, Part]:
+    """The reference solids of one assembly (empty if it has none)."""
+    fn = REFERENCES.get(group)
+    return fn(p) if fn else {}
+
+
 def _validate() -> None:
     names = [spec.name for spec in PARTS]
     if len(set(names)) != len(names):
         raise ValueError(f"duplicate part names: {names}")
+    ref_names = {group: set(fn(DEFAULT)) for group, fn in REFERENCES.items()}
+    clash = set().union(*ref_names.values()) & set(names)
+    if clash:
+        raise ValueError(f"reference solids named like parts: {sorted(clash)}")
+    groups = assemblies().items()
+    members = [{s.name for s in specs} | ref_names.get(g, set()) for g, specs in groups]
     for a, b in CONTACTS:
-        if a not in names or b not in names or get(a).assembly != get(b).assembly:
-            raise ValueError(f"contact ({a}, {b}): unknown part or different assemblies")
-    unknown = ASSEMBLY_CHECKS.keys() - assemblies().keys()
+        if not any({a, b} <= m for m in members):
+            raise ValueError(f"contact ({a}, {b}): unknown name or different assemblies")
+    unknown = (ASSEMBLY_CHECKS.keys() | REFERENCES.keys()) - assemblies().keys()
     if unknown:
-        raise ValueError(f"assembly checks for unknown assemblies: {sorted(unknown)}")
+        raise ValueError(f"assembly checks or references for unknown assemblies: {sorted(unknown)}")
 
 
 _validate()

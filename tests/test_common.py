@@ -12,12 +12,15 @@ from holder.common import (
     circles,
     clash_checks,
     coaxial_check,
+    contact_faces,
     cut,
     hex_flat_widths,
     hex_pocket,
     hex_pocket_checks,
     hole_axes,
     intersection_volume,
+    material_spans,
+    planar_faces,
     rod,
     wall_around,
 )
@@ -99,6 +102,30 @@ def nut_block(hole_dx=0.0, af=AF):
     cut_hole = Pos(hole_dx, 0, 0) * hole
     cut_nut = hex_pocket(af, DEPTH, origin=(7, 0, 3.5), slot_dir=(1, 0, 0), slot_len=9)
     return envelope - cut_hole - cut_nut, envelope, [hole, nut]
+
+
+def test_wall_around_skips_the_space_it_opens_into():
+    # A bore opening into a recess with a ridge 0.5 mm beside the mouth: air, not a wall.
+    box = Box(20, 20, 10, align=BOTTOM)
+    ridge = Pos(0, 4, 8) * Box(20, 1, 1, align=BOTTOM)
+    recess = Pos(0, 0, 8) * Box(20, 20, 2, align=BOTTOM) - ridge
+    bore = rod(6, 6, origin=(0, 0, 5)) & box
+    part = box - recess - bore
+    assert wall_around(part, bore) == pytest.approx(0.5)  # ridge side, measured through air
+    assert wall_around(part, bore, open_to=recess) == pytest.approx(5.0)  # to the bed face
+
+
+def test_material_spans_along_a_line():
+    part = Box(10, 10, 10) - rod(3.4, 12, origin=(0, 0, -6))
+    spans = material_spans(part, (-10, 0, 0), (1, 0, 0), 20)
+    assert [t for span in spans for t in span] == pytest.approx([5, 8.3, 11.7, 15])
+
+
+def test_contact_faces_need_an_area_contact():
+    a = Box(10, 10, 10)
+    assert len(contact_faces(a, Pos(10, 0, 0) * Box(10, 10, 10))) == 1
+    assert contact_faces(a, Pos(10, 10, 0) * Box(10, 10, 10)) == []  # edge to edge only
+    assert len(planar_faces(a, (0, 0, -1))) == 2
 
 
 def test_wall_around_a_connected_cavity():

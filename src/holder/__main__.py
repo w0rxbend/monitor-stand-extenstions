@@ -45,14 +45,17 @@ def part_sheet(spec: PartSpec, part: Part, checks: list[Check], out: Path) -> Pa
     )
 
 
-def assembly_sheet(group: str, parts: dict[str, Part], out: Path) -> Path:
+def assembly_sheet(group: str, parts: dict[str, Part], refs: dict[str, Part], out: Path) -> Path:
     name = "assembly" if group == "holder" else f"assembly-{group}"
     title = f"assembly '{group}': {', '.join(parts)}"
+    subtitle = "all parts in assembly coordinates"
+    if refs:
+        subtitle += f"; reference solids (not printed): {', '.join(refs)}"
     return render_sheet(
-        standard_sheet(Compound(list(parts.values()))),
+        standard_sheet(Compound([*parts.values(), *refs.values()])),
         out / f"{name}.png",
         title,
-        "all parts in assembly coordinates",
+        subtitle,
     )
 
 
@@ -84,14 +87,16 @@ def run(specs: list[PartSpec], p: Params, out: Path, png: bool) -> list[tuple[st
         print(f"{spec.name}: {time.perf_counter() - t0:.1f} s")
 
     for group, members in registry.assemblies(specs).items():
-        group_parts = {s.name: parts[s.name] for s in members}
+        printed = {s.name: parts[s.name] for s in members}
+        refs = registry.references(group, p)  # e.g. the column: checked and drawn, not exported
+        group_parts = {**printed, **refs}
         contacts = [pair for pair in registry.CONTACTS if set(pair) <= group_parts.keys()]
         rows += [(f"assembly {group}", c) for c in clash_checks(group_parts, contacts)]
         group_checks = registry.ASSEMBLY_CHECKS.get(group)
-        if group_checks and len(group_parts) == len(registry.assemblies()[group]):
+        if group_checks and len(printed) == len(registry.assemblies()[group]):
             rows += [(f"assembly {group}", c) for c in group_checks(group_parts, p)]
-        if png and group_parts:
-            assembly_sheet(group, group_parts, out)
+        if png and printed:
+            assembly_sheet(group, printed, refs, out)
     return rows
 
 
