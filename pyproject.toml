@@ -1,0 +1,25 @@
+[project]
+name = "holder"
+version = "0.1.0"
+description = "Monitor stand holder: TPU split band + PETG extension block, CAD as code"
+requires-python = ">=3.12,<3.13"
+dependencies = ["build123d>=0.11,<0.12"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/holder"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+cache-dir = "/tmp/ruff-cache"
