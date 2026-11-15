@@ -8,10 +8,18 @@ Patterns and values below are reused from `~/Projects/FreeCAD-Projects/Tigerbee 
 1. **TPU band**, two halves (front, back) around the column. Seams left and right, `seam_gap` 4 mm each.
    2 x M3 bolts per seam through ears; the nuts sit in hex pockets so they do not spin in the TPU.
    Tightening the bolts clamps the band.
-2. **Boss** on the back half: 4 x M3 through-holes on a 20 mm square, head recesses on the inner face so the heads never touch the column.
-3. **PETG block** (L: plate, arm, riser). Boss screws go into captive M3 nuts in the plate.
+2. **Boss** on the back half, 10 mm proud: 4 x M3 through-holes on a 20 mm square, head recesses on the inner face so the heads
+   (ISO 7380 button heads on DIN 125 washers) sit 1 mm below the band face and never touch the column.
+3. **PETG block** (L: plate, arm, riser). Boss screws (M3x16) go into captive M3 nuts in the plate.
    Top face = extension point: 1/4"-20 in the center, 4 x M3 on a 20 mm square, all **captive nuts in side-slot pockets**.
+   The 1/4"-20 nut sits right under a 2.5 mm top wall, so a short 1/4" accessory screw (about 6 mm of thread) engages it;
+   the 4 M3 nuts sit deeper (10 mm), below the 1/4" pocket, so no two pockets meet and every wall stays >= 1.5 mm.
    No heat-set inserts: no earlier project used them, and nut sizes are standard while insert sizes vary by brand.
+
+Use (user's side view): the monitor hangs on a carriage on the column's front face (-Y). The band clamps the column right
+under its top end, above that carriage; the block runs back (+Y) and the riser stands behind the column. The top face will
+later carry a 2-DOF arm (yaw ring + pitch hinge) leaning forward over the monitor, so it sees a forward bending moment and a
+yaw torque. That arm is not part of this plan.
 
 ## Column (measured, plus traced profile)
 
@@ -22,7 +30,8 @@ Patterns and values below are reused from `~/Projects/FreeCAD-Projects/Tigerbee 
 | Corner radius | 12 mm | `refs/stand-photos/profile-tracing*.jpg`: corners read 9–13 mm, sides slightly bowed (squircle-like) | medium |
 
 The pencil line adds about 0.5 mm per side, so tracing values are reduced by about 1 mm.
-Model the profile as a rounded rectangle 40.2 x 55.5, r = 12. The seams adjust depth by up to 8 mm;
+Model the profile as a rounded rectangle 40.2 x 55.5, r = 12. Both seams close together, so the seams adjust depth by
+seam_gap minus the fit: 4 - 2 x 0.25 = 3.5 mm (the first 0.5 mm of closing only takes up the fit to the column);
 TPU absorbs the squircle and taper difference. Fallback if the coupon shows gaps at the sides:
 digitize `profile-tracing.jpg` into a spline profile (scale from the caliper in `profile-tracing-width.jpg`).
 
@@ -34,15 +43,19 @@ Each low-confidence value has a comment `# estimated: <source>`.
 ```
 column_w=40.2 column_d=55.5 column_r=12
 band_wall=4 band_h=35 seam_gap=4 ear_len=10 ear_t=5 ear_bolt_z=(9,26)
-boss_w=32 boss_depth=12 block_size=32 arm_length=20 riser_height=40 fillet_r=3
+boss_w=32 boss_depth=10 block_size=32 arm_length=20 riser_height=40 fillet_r=3
 m3_spacing=20
+top_quarter_nut_depth=2.5 top_m3_nut_depth=10   # top face: wall over the 1/4" nut; depth of the M3 nuts
 ```
+
+boss_depth is 10, not 12: with 12 an M3x16 ended 0.9 mm short of the plate nut's far face; with 10 it passes it by 1.1 mm.
 
 Materials and fasteners (copied from Tigerbee 7inch `accessories/_common.py`):
 
 ```
 TPU95A: wall_min=1.2 fit=0.25      PETG: wall_min=1.5 fit=0.30
-m3_through=3.4  m3_head_recess=6.6 x 2 (+1 extra so heads sit below the band face)
+m3_through=3.4  m3_head_recess=7.6 x (2 head + 0.5 washer + 1 extra so heads sit below the band face)
+m3_bolt=ISO 7380 button head 5.7 x 1.65, M3x16 everywhere; washer DIN 125 7.0 x 0.5; nut ISO 4032 5.5 AF x 2.4
 m3_hex_pocket=5.7 AF x 2.6
 quarter_hex_pocket=11.4 AF x 5.8   # 7/16" nut 11.1 x 5.6 + fit: new value, confirm with the coupon
 quarter_through=6.6
@@ -85,7 +98,7 @@ Rule from V2: part builders never export, and exporters never repair geometry.
 | 1 | `uv init`, pyproject as above, copy `hex_pocket`, the mesher fix and preview from Tigerbee 7inch. | A placeholder box exports STEP, STL and PNG; pytest runs. |
 | 2 | `coupon`: one 12 mm band slice (both halves, 1 bolt per seam) plus a PETG strip with the M3 and 1/4" hex pockets and through-holes. | Checks pass. The user prints it (~25 min). The band clamps with seam gap left. The nuts press in and hold. |
 | 3 | `band_front`, `band_back`: ears, nut pockets, 1 mm grip ribs every 5 mm, boss with head recesses. | Checks pass. |
-| 4 | `block`: plate nuts for the boss; top face nuts at 2 depths (M3 at 6 mm, 1/4" at 14 mm) so the pockets do not cut into each other. | Checks pass, including ≥ 1.5 mm wall between pockets. No clash with the band. |
+| 4 | `block`: plate nuts for the boss; top face nuts at 2 depths (1/4" under a 2.5 mm top wall, M3 at 10 mm) so the pockets do not cut into each other. | Checks pass, including ≥ 1.5 mm wall between pockets, a 6 mm 1/4" screw thread engaging the top nut, and both M3x16 stacks (seam, boss) passing fully through their nuts. No clash with the band. |
 | 5 | Final export and README with print notes and hardware. | `out/` holds STEP and STL for every part, plus PNG previews. |
 
 After the coupon: band too loose, lower `column_d` by 1. Band does not fit, raise the binding dimension by 1. Nut pocket too tight, add 0.1 to its AF. Rebuild.
@@ -97,10 +110,12 @@ After the coupon: band too loose, lower `column_d` by 1. Band does not fit, rais
 
 ## Hardware
 
-- 4 x M3x20 + washer + nut (seams).
-- 4 x M3x16 + nut (boss to block).
+- 4 x M3x16 ISO 7380 + washer + nut (seams).
+- 4 x M3x16 ISO 7380 + washer + nut (boss to block; the washer spreads the head load on the TPU).
 - 4 x M3 nut (top face).
 - 1 x 1/4"-20 nut (top face).
+
+In total: 8 x M3x16 ISO 7380 button head, 8 x M3 DIN 125 washer, 12 x M3 nut, 1 x 1/4"-20 nut.
 
 ## Refs
 
