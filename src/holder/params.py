@@ -52,15 +52,27 @@ class Params:
     # Boss on the back half (4 x M3 to the block): a boss_w square face (X x Z), boss_depth
     # proud of the band's outer back face, bottom flush with the band bottom (the bed face).
     boss_w: float = 32.0
-    boss_depth: float = 12.0
+    # 10, not PLAN's 12 (user decision after Task 4): with 12 an M3x16 ended 0.9 mm short of
+    # the far face of the plate nut. With 10 it reaches 1.1 mm past it (block.boss_hardware_checks).
+    boss_depth: float = 10.0
 
     # PETG block: plate, arm, riser.
-    block_size: float = 32.0
-    arm_length: float = 20.0
-    riser_height: float = 40.0
-    fillet_r: float = 3.0
-    top_m3_nut_depth: float = 6.0  # top-face M3 nuts sit this deep (Task 4)
-    top_quarter_nut_depth: float = 14.0  # top-face 1/4"-20 nut sits this deep (Task 4)
+    block_size: float = 32.0  # arm and riser cross-section; the plate covers the boss face
+    arm_length: float = 20.0  # boss face to the riser's front face
+    riser_height: float = 40.0  # riser top (the extension point) above the arm top
+    fillet_r: float = 3.0  # inner L corner
+    plate_nut_wall: float = 1.5  # PETG between the boss face and each plate nut (wall_min)
+    plate_hole_extra: float = 4.0  # estimated: blind hole past a plate nut, room for the M3x16 tip
+    # Top face (user decision after Task 4, replaces PLAN's M3 at 6 / 1/4" at 14): the 1/4" nut
+    # sits right under a thin top wall, so a short 1/4"-20 accessory screw (about 6 mm of
+    # thread) reaches it; the M3 nuts sit below the 1/4" pocket, so the pockets never meet.
+    top_quarter_nut_depth: float = 2.5  # top wall over the 1/4" nut (PETG wall_min 1.5)
+    top_m3_nut_depth: float = 10.0  # 1.7 mm of PETG below the 1/4" pocket (2.5 + 5.8)
+    top_m3_hole_extra: float = 6.0  # estimated: blind hole past a top M3 nut, for longer bolts
+    top_quarter_hole_extra: float = 10.0  # estimated: past the 1/4" nut, for longer screws
+    quarter_screw_thread: float = 6.0  # estimated: short 1/4"-20 accessory screw (user)
+    quarter_pitch: float = 25.4 / 20  # 1/4"-20 UNC: 20 threads per inch
+    quarter_engage_threads: float = 2.0  # estimated: least engagement of that short screw
 
     # Coupon: one band slice (one seam bolt per seam, at mid-height) plus a PETG strip (Task 2).
     coupon_h: float = 12.0
@@ -71,7 +83,7 @@ class Params:
     # Fasteners (pocket and hole sizes already include the print fit).
     m3_through: float = 3.4
     m3_head_d: float = 6.6  # head recess diameter
-    m3_head_h: float = 2.0  # head recess depth = the head height it is sized for
+    m3_head_h: float = 2.0  # head recess depth = the head height it is sized for (>= ISO 7380)
     m3_head_extra: float = 1.0  # extra depth so the heads sit below the band face
     m3_hex_af: float = 5.7  # nut pocket across flats
     m3_hex_h: float = 2.6  # nut pocket depth
@@ -79,11 +91,15 @@ class Params:
     quarter_hex_h: float = 5.8  # estimated: nut 5.6 + fit, new value; confirm with coupon
     quarter_through: float = 6.6  # 1/4" = 6.35 plus clearance
 
-    # Seam hardware (PLAN.md "Hardware": 4 x M3x20 + washer + nut), standard part sizes.
-    seam_bolt_len: float = 20.0  # M3x20, length under the head
+    # Hardware (user decision after Task 4): 8 x M3x16 ISO 7380 button head, 4 at the seams
+    # (+ washer + nut), 4 boss to block (+ nut). Standard part sizes.
+    m3_bolt_head_d: float = 5.7  # ISO 7380 M3 button head
+    m3_bolt_head_h: float = 1.65
+    seam_bolt_len: float = 16.0  # M3x16, length under the head
     m3_washer_d: float = 7.0  # DIN 125-A M3 washer
     m3_washer_t: float = 0.5
     m3_nut_h: float = 2.4  # ISO 4032 M3 nut
+    boss_bolt_len: float = 16.0  # M3x16, length under the head
 
     @property
     def m3_head_recess_depth(self) -> float:
@@ -105,6 +121,15 @@ class Params:
             ("boss edge to M3 head recess", pattern_margin - self.m3_head_d / 2, TPU),
             ("block edge to M3 nut pocket", block_margin - m3_corner, PETG),
             ("block edge to 1/4 nut pocket", self.block_size / 2 - quarter_corner, PETG),
+            ("boss face to plate nut pocket", self.plate_nut_wall, PETG),
+            ("top face to 1/4 nut pocket", self.top_quarter_nut_depth, PETG),
+            ("top face to M3 nut pocket", self.top_m3_nut_depth, PETG),
+            # Conservative: as if the pockets sat above each other (they do not, quite).
+            (
+                "1/4 nut pocket to the M3 nut pockets below it",
+                self.top_m3_nut_depth - self.top_quarter_nut_depth - self.quarter_hex_h,
+                PETG,
+            ),
             # The coupon has one seam bolt per seam at mid-height.
             ("coupon edge to seam nut", self.coupon_h / 2 - m3_corner, TPU),
         ]
@@ -137,6 +162,8 @@ class Params:
                 raise ValueError(f"{name}: {thickness:.3f} mm < {material} wall_min {wall_min} mm")
         if self.rib_tip + 2 * self.rib_h > self.rib_pitch:
             raise ValueError("rib_pitch: neighbouring grip ribs overlap at the band face")
+        if self.m3_bolt_head_d >= self.m3_head_d or self.m3_bolt_head_h > self.m3_head_h:
+            raise ValueError("m3_bolt_head_h / m3_bolt_head_d: the head does not fit its recess")
         if self.boss_w > self.band_h:
             raise ValueError("boss_w: the boss is taller than the band")
         return self

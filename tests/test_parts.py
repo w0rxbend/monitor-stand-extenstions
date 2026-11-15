@@ -5,9 +5,9 @@ from dataclasses import replace
 from functools import cache
 
 import pytest
-from build123d import Pos
+from build123d import Box, Pos
 
-from holder import band, coupon, registry
+from holder import band, block, coupon, registry
 from holder.common import clash_checks, cut
 from holder.export import STEP_VOLUME_TOL, export_part, step_volume, to_print, write_step
 from holder.params import DEFAULT, MATERIALS
@@ -141,7 +141,37 @@ def full_band_back(p, shift_boss=None, plug_recess=False):
     return cut(band.envelope(p, band.BACK, p.band_h, boss=True), cutters)
 
 
+def defective_block(p, shift_plate=None, plug_top_m3=False):
+    """The block with one defect: the plate hole at x=10 z=6 moved by `shift_plate`, or the
+    nut pocket of the first top M3 (x=-10, front row) left out."""
+    x, y = block.top_m3_points(p)[0]
+    plugged = f"top M3 x={x:g} y={y:g}"
+    cutters = []
+    for label, (hole, pocket) in block.cutter_groups(p):
+        if label == "plate M3 x=10 z=6" and shift_plate:
+            hole = Pos(*shift_plate) * hole
+        cutters.append(hole)
+        if not (label == plugged and plug_top_m3):
+            cutters.append(pocket)
+    return cut(block.envelope(p), cutters)
+
+
 NEGATIVE = {
+    "block shifted plate hole": (
+        block.checks,
+        lambda: defective_block(DEFAULT, shift_plate=(0, 0, 0.3)),
+        "plate nut holes coaxial with the boss holes (circular edges)",
+    ),
+    "block plugged top pocket": (
+        block.checks,
+        lambda: defective_block(DEFAULT, plug_top_m3=True),
+        "top M3 nut pockets",
+    ),
+    "block oversize 1/4 nut pocket": (
+        block.checks,
+        lambda: block.build(replace(DEFAULT, quarter_hex_af=DEFAULT.quarter_hex_af + 0.2)),
+        "top 1/4 nut pocket AF",
+    ),
     "band_back shifted boss hole": (
         band.checks_back,
         lambda: full_band_back(DEFAULT, shift_boss=(0.3, 0, 0)),
@@ -217,7 +247,11 @@ def test_shifted_seam_hole_fails_the_seam_coaxial_check():
         coupon.BACK_NAME: band_back(DEFAULT, shift_hole=(0, 0, 0.3)),
     }
     failed = failed_names(coupon.assembly_checks(parts, DEFAULT))
-    assert failed == {"seam +X: bolt holes coaxial across the seam"}
+    # The M3 shank (3.0) on the design axis also rubs the shifted 3.4 hole: 1.7 - 0.3 < 1.5.
+    assert failed == {
+        "seam +X: bolt holes coaxial across the seam",
+        "seam +X z=6: seam closed, bolt holds the nut and its tip is clear",
+    }
 
 
 def test_ribs_into_the_column_fail_the_clash_check():
@@ -242,6 +276,51 @@ def test_small_seam_gap_fails_the_clamp_reserve():
     assert failed == {"clamped: seam -X gap still open", "clamped: seam +X gap still open"}
 
 
+REACH = "M3x{:g} reaches through the plate nut"
+
+
+@pytest.mark.parametrize(
+    "length, reaches, room", [(14.0, False, True), (16.0, True, True), (20.0, True, False)]
+)
+def test_boss_bolt_length_against_the_measured_stack(length, reaches, room):
+    # Head floor to boss face 11 mm TPU + 1.5 mm PETG wall + 2.4 mm nut = 14.9 mm;
+    # the blind hole ends 8.1 mm into the plate, an M3x20 tip would end 9 mm in.
+    p = replace(DEFAULT, boss_bolt_len=length)
+    back = block.band_parts(p)[band.BACK_NAME]
+    checks = block.boss_hardware_checks(built(block.NAME), back, p)
+    reach = [c for c in checks if c.name.endswith(REACH.format(length))]
+    tips = [c for c in checks if "room past the bolt tip" in c.name]
+    assert len(reach) == len(tips) == 4
+    assert all(c.ok == reaches for c in reach)
+    assert all(c.ok == room for c in tips)
+
+
+def test_seam_bolt_tip_hitting_something_with_the_seam_closed_fails():
+    # M3x16 ends 1.7 mm past the nut (y = 8.5) as built, 5.7 mm (y = 12.5) with the seam closed.
+    p = DEFAULT
+    front, back = built(coupon.FRONT_NAME), built(coupon.BACK_NAME)
+    x = band.bolt_x(p, 1)
+    obstacle = Pos(x, 10, 6) * Box(4, 2, 4)
+    checks = band.seam_hardware_checks(front, back, p, coupon.bolt_zs(p), {"obstacle": obstacle})
+    assert failed_names(checks) == {
+        "seam +X z=6: seam closed, bolt holds the nut and its tip is clear"
+    }
+    assert not failures(band.seam_hardware_checks(front, back, p, coupon.bolt_zs(p)))
+
+
+def test_deep_quarter_nut_fails_the_short_screw_check():
+    p = replace(DEFAULT, top_quarter_nut_depth=4.5)  # 6 mm thread leaves 1.5 mm = 1.2 threads
+    check = block.quarter_screw_check(block.build(p), p)
+    assert not check.ok, check.measured
+    assert block.quarter_screw_check(built(block.NAME), DEFAULT).ok
+
+
+def test_block_into_the_boss_fails_the_clash_check():
+    pushed = Pos(0, -0.3, 0) * built(block.NAME)
+    failed = failed_names(block.clash_with_band(pushed, DEFAULT))
+    assert failed == {f"{block.NAME} / {band.BACK_NAME}: contact"}
+
+
 def test_default_params_valid():
     assert DEFAULT.validate() is DEFAULT
 
@@ -258,6 +337,7 @@ def test_default_params_valid():
         ("ear_bolt_z", ()),
         ("rib_pitch", 2.5),  # ribs 3 mm wide at the face would overlap
         ("boss_w", 36.0),  # boss taller than the 35 mm band
+        ("m3_bolt_head_h", 2.2),  # button head taller than its 2 mm recess
     ],
 )
 def test_validate_rejects_bad_values(field, value):
@@ -277,6 +357,9 @@ def test_validate_rejects_non_numbers():
         {"ear_t": 3.7},  # 1.1 left behind the 2.6 deep nut pocket
         {"boss_w": 26.0},  # M3 head recess breaks the boss edge
         {"block_size": 26.0},  # M3 nut pocket breaks the block edge
+        {"plate_nut_wall": 1.2},  # PETG wall_min 1.5 in front of the plate nuts
+        {"top_quarter_nut_depth": 1.2},  # top wall over the 1/4" nut
+        {"top_m3_nut_depth": 9.0},  # 0.7 mm under the 1/4" pocket
         {"ear_bolt_z": (4.0, 26.0)},  # seam nut too close to the band bottom
         {"coupon_h": 8.0},  # coupon seam nut too close to the slice edge
     ],

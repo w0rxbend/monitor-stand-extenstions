@@ -66,7 +66,7 @@ def checks_back(part: Part, p: Params) -> list[Check]:
 
 
 # --- PETG strip ----------------------------------------------------------------------------------
-# A bar 31 x 16 x 24 mm (X x Y x Z). Its top face (+Z) stands in for the block's top face:
+# A bar 31 x 16 x 16 mm (X x Y x Z). Its top face (+Z) stands in for the block's top face:
 # both holes run down along -Z. Both nut slots open on the +Y face. Printed on the -Y face,
 # the slots point up, so no pocket has a roof; the holes lie horizontal (PLAN.md "Print":
 # they print about 0.15 mm small, which the through-hole sizes cover).
@@ -77,7 +77,7 @@ STRIP_X_MIN = STRIP_M3_X - 7.0  # 4.15 mm past the M3 pocket flat
 STRIP_X_MAX = STRIP_M3_X + STRIP_PITCH + 9.0  # 3.3 mm past the 1/4" pocket flat
 STRIP_Y_FRONT = -8.5  # bed face; 1.9 mm behind the 1/4" pocket corner
 STRIP_Y_BACK = 7.5  # the nut slots open here
-STRIP_H = 24.0  # 1/4" nut at 14 + 5.8 deep leaves 4.2 mm of floor
+STRIP_H = 16.0  # M3 nut at 10 + 2.6 deep leaves 3.4 mm of floor
 STRIP_PRINT = (0, -1, 0)
 
 

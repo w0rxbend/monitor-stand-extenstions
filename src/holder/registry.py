@@ -3,7 +3,7 @@ intended contacts.
 
 Part module contract
 --------------------
-A part module (band.py: band_front, band_back; coupon.py; the block later) defines
+A part module (band.py: band_front, band_back; block.py; coupon.py) defines
 
     PARTS: list[PartSpec]    one entry per printed part
     ASSEMBLY_CHECKS          optional {assembly: fn(parts: dict[name, Part], p) -> list[Check]}
@@ -44,11 +44,11 @@ from collections.abc import Callable
 
 from build123d import Part
 
-from holder import band, coupon
+from holder import band, block, coupon
 from holder.common import Check, PartSpec
 from holder.params import DEFAULT, Params
 
-MODULES = (band, coupon)
+MODULES = (band, block, coupon)
 
 PARTS: list[PartSpec] = [spec for module in MODULES for spec in module.PARTS]
 
@@ -66,8 +66,8 @@ REFERENCES: dict[str, References] = {
 # Band halves vs column: none as assembled. Each half keeps the TPU fit (0.25 mm) to the
 # column; the contact (rib tips vs column) only exists once the seam bolts pull the halves
 # on, and band.seam_checks checks it in that clamped position (band.CLAMP_CONTACTS).
-# Example for Task 4: ("band_back", "block") -- the boss face sits on the plate.
-CONTACTS: tuple[tuple[str, str], ...] = ()
+# Block vs band_back: the plate face sits on the boss face (4 x M3 pull them together).
+CONTACTS: tuple[tuple[str, str], ...] = ((band.BACK_NAME, block.NAME),)
 
 
 def get(name: str) -> PartSpec:

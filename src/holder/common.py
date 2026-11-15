@@ -273,6 +273,12 @@ def hole_axes(shape: Shape, diameter: float, direction=None) -> list[Axis]:
     return unique_axes(c.axis for c in cylinders(shape, diameter / 2, direction))
 
 
+def circle_axes(shape: Shape, diameter: float, direction=None) -> list[Axis]:
+    """One axis per hole of `diameter`, from the real circular edges (rims, and where the
+    hole meets a pocket floor or its own bottom)."""
+    return unique_axes(c.axis for c in circles(shape, diameter / 2, direction))
+
+
 def coaxial_check(
     name: str,
     axes_a: list[Axis],

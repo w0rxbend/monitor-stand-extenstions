@@ -9,6 +9,7 @@ from holder.common import (
     captive_nut,
     cavity_check,
     cavity_pieces,
+    circle_axes,
     circles,
     clash_checks,
     coaxial_check,
@@ -79,6 +80,8 @@ def test_hole_axes_and_coaxial_check():
     assert hole_axes(plate, 3.4, direction=(1, 0, 0)) == []
     assert hole_axes(plate, 3.0) == []
     assert len(circles(plate, 1.7, direction=(0, 0, 1))) == 2  # top and bottom rim
+    assert len(circle_axes(plate, 3.4, direction=(0, 0, 1))) == 1  # both rims, one axis
+    assert coaxial_check("edges vs faces", circle_axes(plate, 3.4), axes, expected=1).ok
 
     above = hole_axes(Pos(0, 0, 10) * plate_with_hole(5.0), 3.4)
     shifted = hole_axes(plate_with_hole(5.2), 3.4)

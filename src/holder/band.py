@@ -491,16 +491,30 @@ def rib_contact_check(name: str, part: Part, col: Part, p: Params, h: float) -> 
     )
 
 
-def seam_hardware_checks(front: Part, back: Part, p: Params, bolt_zs) -> list[Check]:
-    """PLAN.md hardware for each seam bolt: M3 x seam_bolt_len + washer + nut.
+def seam_bolt(p: Params, x: float, seat_y: float, z: float, closed_by: float) -> Part:
+    """The seam bolt's shank (nominal M3, under the head) with its head on the washer, the
+    front half moved `closed_by` toward the back half (the seam gap that much narrower)."""
+    head_y = seat_y - p.m3_washer_t + closed_by
+    return rod(3.0, p.seam_bolt_len, origin=(x, head_y, z), axis=BOLT_AXIS)
+
+
+def seam_hardware_checks(
+    front: Part, back: Part, p: Params, bolt_zs, others: dict[str, Part] | None = None
+) -> list[Check]:
+    """Hardware for each seam bolt: M3 x seam_bolt_len + washer + nut.
 
     Measured along a probe line parallel to the bolt, between the hole (r 1.7) and the nut
     pocket flats (2.85): from the washer seat on the front ear to the nut pocket floor in
-    the back ear. The bolt must reach through washer, both ears, the open seam gap and the
-    whole nut; and the washer must clear the band wall next to the ear.
+    the back ear. As built (the seam open by seam_gap, the longest stack) the bolt must
+    reach through washer, both ears, the gap and the whole nut; the washer must clear the
+    band wall next to the ear. Clamping only shortens the stack: with the seam closed all
+    the way (ears touching, past any clamp reserve) the bolt still holds the whole nut and
+    its tip, now seam_gap further out, must stay clear of the back half and of `others`
+    (other parts of the assembly).
     """
     probe = (p.m3_through / 2 + p.m3_hex_af / 2) / 2
     length = 4 * (p.seam_gap + 2 * p.ear_t)
+    obstacles = {"back half": back, **(others or {})}
     checks = []
     for seam, z in bolts(bolt_zs):
         x = bolt_x(p, seam)
@@ -523,6 +537,17 @@ def seam_hardware_checks(front: Part, back: Part, p: Params, bolt_zs) -> list[Ch
                 f"+ nut {p.m3_nut_h:g}), {spare:.2f} mm past the nut with the seam open",
             )
         )
+        shank = seam_bolt(p, x, seat_y, z, p.seam_gap)
+        hits = {n: intersection_volume(shank, o) for n, o in obstacles.items()}
+        hit = sorted(n for n, v in hits.items() if v > VOLUME_EPS)
+        checks.append(
+            Check(
+                f"{name}: seam closed, bolt holds the nut and its tip is clear",
+                spare + p.seam_gap >= 0 and not hit,
+                f"tip {spare + p.seam_gap:.2f} mm past the nut, "
+                + (f"hits {', '.join(hit)}" if hit else f"clear of {', '.join(sorted(hits))}"),
+            )
+        )
         washer = rod(p.m3_washer_d, p.m3_washer_t, origin=(x, seat_y, z), axis=(0, -1, 0))
         overlap = intersection_volume(washer, front)
         checks.append(
@@ -535,10 +560,12 @@ def seam_hardware_checks(front: Part, back: Part, p: Params, bolt_zs) -> list[Ch
     return checks
 
 
-def seam_checks(front: Part, back: Part, p: Params, h: float, bolt_zs) -> list[Check]:
+def seam_checks(
+    front: Part, back: Part, p: Params, h: float, bolt_zs, others: dict[str, Part] | None = None
+) -> list[Check]:
     """Assembly checks of the two halves: holes coaxial across each seam, the column fits,
     clamped the halves touch the column only on the rib tips and each seam gap stays open,
-    and the seam hardware fits."""
+    and the seam hardware fits (its bolt tips clear of `others` with the seam closed)."""
     checks = []
     sides = {seam: _seam_side(p, seam, h) for seam in SEAMS}
     front_axes = hole_axes(front, p.m3_through, direction=BOLT_AXIS)
@@ -590,7 +617,7 @@ def seam_checks(front: Part, back: Part, p: Params, h: float, bolt_zs) -> list[C
         checks.append(
             at_least(f"clamped: seam {SEAM_NAMES[seam]} gap still open", left, SEAM_RESERVE_MIN)
         )
-    return checks + seam_hardware_checks(front, back, p, bolt_zs)
+    return checks + seam_hardware_checks(front, back, p, bolt_zs, others)
 
 
 # --- Parts band_front, band_back -----------------------------------------------------------------
@@ -616,7 +643,8 @@ def assembly_checks(parts: dict[str, Part], p: Params) -> list[Check]:
     """The full band: the seam checks, plus the boss bolt heads clear of the column once the
     back half is clamped onto it."""
     front, back = parts[FRONT_NAME], parts[BACK_NAME]
-    checks = seam_checks(front, back, p, p.band_h, p.ear_bolt_z)
+    others = {n: s for n, s in parts.items() if n not in (FRONT_NAME, BACK_NAME)}
+    checks = seam_checks(front, back, p, p.band_h, p.ear_bolt_z, others)
     col = parts[COLUMN_NAME] if COLUMN_NAME in parts else column(p, p.band_h)
     back_c = clamped(back, BACK, clamp_travel(back, col))
     heads = head_solids(back_c, p, hole_axes(back_c, p.m3_head_d, direction=BOLT_AXIS))
