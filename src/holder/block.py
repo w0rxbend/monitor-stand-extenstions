@@ -13,6 +13,7 @@ from holder.common import (
     hex_wall_ring,
     intersection_volume,
     one_solid,
+    round_box,
     void_open,
     wall_encloses,
     y_cylinder,
@@ -27,6 +28,11 @@ PRINT = {"block": (-1, 0, 0)}  # on its side; -X is the bed, so nut slots stay o
 PLATE_DEPTH = 12.0
 # 1/4" pocket bottom sits 19.8 mm under the top. 16 mm keeps that stack above the arm.
 ARM_SECTION = 16.0
+# Nut slots need a flat mouth, so the plate and riser stay at R=3.
+# R=5 is the largest arm corner that stays inside the blank after the seam fillet.
+PLATE_CORNER_R = 3.0
+ARM_CORNER_R = 5.0
+RISER_CORNER_R = 3.0
 HOLE_PAST = 3.0
 M3_BELOW_TOP = 6.0
 QUARTER_BELOW_TOP = 14.0
@@ -64,10 +70,30 @@ def _z_cyl(x: float, y: float, z0: float, z1: float, diameter: float) -> Part:
 def _blank(spec: Params) -> Part:
     z0 = boss_z0(spec)
     half = spec.boss_w / 2
-    plate = box_from(-half, boss_face_y(spec), z0, half, _plate_y1(spec), z0 + spec.boss_w)
+    plate = round_box(
+        -half,
+        boss_face_y(spec),
+        z0,
+        half,
+        _plate_y1(spec),
+        z0 + spec.boss_w,
+        PLATE_CORNER_R,
+        along="y",
+    )
     hx = spec.block_size / 2
-    arm = box_from(-hx, _plate_y1(spec), z0, hx, _arm_y1(spec), z0 + ARM_SECTION)
-    riser = box_from(-hx, _arm_y1(spec), z0, hx, _riser_y1(spec), riser_top(spec))
+    arm = round_box(
+        -hx,
+        _plate_y1(spec),
+        z0,
+        hx,
+        _arm_y1(spec),
+        z0 + ARM_SECTION,
+        ARM_CORNER_R,
+        along="y",
+    )
+    riser = round_box(
+        -hx, _arm_y1(spec), z0, hx, _riser_y1(spec), riser_top(spec), RISER_CORNER_R
+    )
     body = plate + arm + riser
     return fillet(_concave_edges(body, spec), spec.fillet_r)
 
@@ -271,7 +297,8 @@ def _top_pocket(
 
 def _riser_region(spec: Params) -> Part:
     z0 = boss_z0(spec) + ARM_SECTION + 1.0
-    half = spec.block_size / 2 - 0.4
+    # Stay inside the straight faces. The corner arcs are not walls between nuts.
+    half = spec.block_size / 2 - RISER_CORNER_R - 0.5
     return box_from(
         -half, _arm_y1(spec) + 1.0, z0, half, _riser_y1(spec) - 0.4, riser_top(spec) - 0.4
     )

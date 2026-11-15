@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import pytest
-from build123d import Cylinder, Pos, import_step
+from build123d import Cylinder, GeomType, Pos, import_step
 
 from holder.accessories import (
     BUILDERS,
@@ -39,6 +39,34 @@ def test_each_accessory_is_one_solid_with_open_bores(built: tuple) -> None:
         printed = print_orientation(part, PRINT[name])
         assert printed.label == name
         assert abs(printed.bounding_box().min.Z) < 1e-4
+
+
+def _has_arc(part, radius: float, tol: float = 0.08) -> bool:
+    return any(
+        abs(edge.radius - radius) <= tol
+        for edge in part.edges()
+        if edge.geom_type == GeomType.CIRCLE
+    )
+
+
+def test_outer_corners_are_circular_arcs(built: tuple) -> None:
+    _spec, parts = built
+    phone = parts["phone"].bounding_box()
+    assert _has_arc(parts["phone"], 8.0)
+    assert _has_arc(parts["phone"], 3.25)
+    assert phone.min.X == pytest.approx(-16, abs=0.05)
+    assert phone.max.Y == pytest.approx(16, abs=0.05)
+    assert phone.max.Z == pytest.approx(14, abs=0.05)
+    assert _has_arc(parts["cam_plate"], 32.0, tol=0.1)
+    assert _has_arc(parts["post"], 9.0)
+    assert _has_arc(parts["hinge_base"], 11.0)
+    assert _has_arc(parts["hinge_link"], 10.0)
+    assert _has_arc(parts["hinge_link"], 4.5)
+    assert _has_arc(parts["gopro"], 16.0, tol=0.1)
+    assert _has_arc(parts["zve10"], 20.0)
+    base = parts["hinge_base"].bounding_box()
+    assert base.max.Z == pytest.approx(36, abs=0.1)
+    assert base.max.Y == pytest.approx(14, abs=0.1)
 
 
 def test_hinges_clear_when_the_tang_sits_in_the_clevis(built: tuple) -> None:

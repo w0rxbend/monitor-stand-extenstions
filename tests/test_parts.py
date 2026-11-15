@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import pytest
-from build123d import Box, import_step
+from build123d import Box, GeomType, import_step
 
 from holder import band, block
 from holder.__main__ import placeholder_box
@@ -113,6 +113,23 @@ def test_band_checks_pass(band_halves: tuple, tmp_path: Path) -> None:
     pair = band.checks_pair(front, back, spec)
     failed = [(name, detail) for name, ok, detail in pair if not ok]
     assert not failed, failed
+
+
+def _has_arc(part, radius: float, tol: float = 0.08) -> bool:
+    return any(
+        abs(edge.radius - radius) <= tol
+        for edge in part.edges()
+        if edge.geom_type == GeomType.CIRCLE
+    )
+
+
+def test_block_and_band_corners_are_circular_arcs(band_halves: tuple) -> None:
+    spec, front, back = band_halves
+    body = block.build(spec)
+    assert _has_arc(body, 3.0)
+    assert _has_arc(body, 5.0)
+    assert _has_arc(front, 4.0)
+    assert _has_arc(back, 8.0)
 
 
 def test_plugged_boss_hole_fails_checks(band_halves: tuple) -> None:

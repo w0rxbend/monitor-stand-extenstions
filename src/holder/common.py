@@ -5,15 +5,19 @@ from math import cos, radians
 from build123d import (
     Axis,
     Box,
+    BuildSketch,
     Cylinder,
     GeomType,
     Location,
     Part,
+    Plane,
     Pos,
+    Rectangle,
     RegularPolygon,
     Rot,
     Vector,
     extrude,
+    fillet,
     offset,
 )
 
@@ -61,6 +65,37 @@ def box_from(x0: float, y0: float, z0: float, x1: float, y1: float, z1: float) -
     return Pos((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2) * Box(
         abs(x1 - x0), abs(y1 - y0), abs(z1 - z0)
     )
+
+
+def round_box(
+    x0: float,
+    y0: float,
+    z0: float,
+    x1: float,
+    y1: float,
+    z1: float,
+    radius: float,
+    along: str = "z",
+) -> Part:
+    """Box whose corners are circular arcs, extruded along `along`.
+
+    The arcs are circles, so the corner surfaces are cylinders. The two end
+    faces stay flat. A radius that does not fit falls back to a sharp box.
+    """
+    lo = {axis: min(start, end) for axis, start, end in zip("xyz", (x0, y0, z0), (x1, y1, z1))}
+    hi = {axis: max(start, end) for axis, start, end in zip("xyz", (x0, y0, z0), (x1, y1, z1))}
+    span = {axis: hi[axis] - lo[axis] for axis in "xyz"}
+    width_axis, depth_axis = (axis for axis in "xyz" if axis != along)
+    corner = min(radius, span[width_axis] / 2 - 0.05, span[depth_axis] / 2 - 0.05)
+    if corner < 0.4 or span[along] <= 0:
+        return box_from(x0, y0, z0, x1, y1, z1)
+    plane = {"z": Plane.XY, "y": Plane.XZ, "x": Plane.YZ}[along]
+    with BuildSketch(plane) as sketch:
+        Rectangle(span[width_axis], span[depth_axis])
+        fillet(sketch.vertices(), radius=corner)
+    body = extrude(sketch.sketch, amount=span[along])
+    bounds = body.bounding_box()
+    return Pos(lo["x"] - bounds.min.X, lo["y"] - bounds.min.Y, lo["z"] - bounds.min.Z) * body
 
 
 def y_cylinder(x: float, z: float, y0: float, y1: float, diameter: float) -> Part:

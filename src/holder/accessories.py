@@ -22,7 +22,15 @@ the pocket for that ear. Width and hole size are from a photo, not calipers.
 
 from build123d import Cylinder, Part, Pos, Rot
 
-from holder.common import Check, box_from, hex_pocket, intersection_volume, one_solid
+from holder.common import (
+    Check,
+    box_from,
+    hex_pocket,
+    intersection_volume,
+    one_solid,
+    round_box,
+    y_cylinder,
+)
 from holder.params import Params
 
 PAD_T = 10.0
@@ -89,7 +97,7 @@ def _label(part: Part, name: str) -> Part:
 
 
 def _foot_solid(x: float, y: float, z0: float) -> Part:
-    return box_from(x - 16, y - 16, z0, x + 16, y + 16, z0 + FOOT_T)
+    return round_box(x - 16, y - 16, z0, x + 16, y + 16, z0 + FOOT_T, 6)
 
 
 def _foot_tools(spec: Params, x: float, y: float, z0: float) -> list[Part]:
@@ -100,7 +108,7 @@ def _foot_tools(spec: Params, x: float, y: float, z0: float) -> list[Part]:
 
 
 def _mount_solid(x: float, y: float, z0: float) -> Part:
-    return box_from(x - 16, y - 16, z0, x + 16, y + 16, z0 + PAD_T)
+    return round_box(x - 16, y - 16, z0, x + 16, y + 16, z0 + PAD_T, 6)
 
 
 def _mount_tools(spec: Params, x: float, y: float, z0: float) -> list[Part]:
@@ -125,23 +133,27 @@ def _ears(y0: float, y1: float, z0: float, z1: float) -> list[Part]:
     for sign in (-1.0, 1.0):
         inner = sign * GAP / 2
         outer = inner + sign * EAR_T
-        ears.append(box_from(min(inner, outer), y0, z0, max(inner, outer), y1, z1))
+        ears.append(
+            round_box(min(inner, outer), y0, z0, max(inner, outer), y1, z1, 11, along="x")
+        )
     return ears
 
 
 def _tang(y_hole: float) -> Part:
-    return box_from(
+    return round_box(
         -TANG / 2,
         y_hole + TANG_Y0,
         HINGE_Z - 12,
         TANG / 2,
         y_hole + TANG_Y1,
         HINGE_Z + 10,
+        10,
+        along="x",
     )
 
 
 def _beam(y0: float, y1: float) -> Part:
-    return box_from(-7, y0, BEAM_Z0, 7, y1, BEAM_Z1)
+    return round_box(-7, y0, BEAM_Z0, 7, y1, BEAM_Z1, 4.5, along="y")
 
 
 def _bore_open(part: Part, probe: Part, name: str) -> Check:
@@ -151,7 +163,7 @@ def _bore_open(part: Part, probe: Part, name: str) -> Check:
 
 def build_cam_plate(spec: Params) -> Part:
     """300 mm plate. Rear hole bolts down. Center camera is fixed. Sides slide."""
-    plate = box_from(-150, -40, 0, 150, 24, PLATE_T)
+    plate = round_box(-150, -40, 0, 150, 24, PLATE_T, 32)
     tools = [
         *_foot_tools(spec, 0, CAM_MOUNT_Y, 0),
         _hole(0, CAM_Y, -0.2, PLATE_T + 0.2, spec.quarter_through),
@@ -196,7 +208,7 @@ def build_hinge_mid(_spec: Params) -> Part:
 
 def build_gopro(spec: Params) -> Part:
     """Foot, plus a pocket a 1/4" screw drops into before the foot is bolted down."""
-    pad = box_from(-16, -32, 0, 16, 28, FOOT_T)
+    pad = round_box(-16, -32, 0, 16, 28, FOOT_T, 16)
     boss = Pos(0, 14, 10) * Cylinder(10, 12)
     pocket = _hole(0, 14, -0.2, STUD_POCKET_H, STUD_POCKET_D)
     stud = _hole(0, 14, STUD_POCKET_H - 0.6, 16.2, spec.quarter_through)
@@ -206,9 +218,9 @@ def build_gopro(spec: Params) -> Part:
 
 def build_zve10(spec: Params) -> Part:
     """Plate for one ZV-E10. The camera screw slides. The socket offset is unverified."""
-    plate = box_from(-70, -24, 0, 70, 80, FOOT_T)
-    lip = box_from(-61, 8, FOOT_T - 2, 61, 76, FOOT_T + 1.5)
-    opening = box_from(-58, 11, FOOT_T - 2.2, 58, 73, FOOT_T + 1.7)
+    plate = round_box(-70, -24, 0, 70, 80, FOOT_T, 20)
+    lip = round_box(-61, 8, FOOT_T - 2, 61, 76, FOOT_T + 1.5, 8)
+    opening = round_box(-58, 11, FOOT_T - 2.2, 58, 73, FOOT_T + 1.7, 6)
     slot = box_from(-12, 40, -0.2, 12, 46.6, FOOT_T + 0.2)
     head = box_from(-15, 37, -0.2, 15, 49.6, HEAD_H)
     body = _fuse([plate, lip]) - opening
@@ -218,20 +230,26 @@ def build_zve10(spec: Params) -> Part:
 
 def build_post(spec: Params) -> Part:
     cap_z = 74.0
-    column = box_from(-9, -9, 4, 9, 9, cap_z + 8)
+    column = Pos(0, 0, (4 + cap_z + 8) / 2) * Cylinder(9, cap_z + 4)
     body = _fuse([_foot_solid(0, 0, 0), column, _mount_solid(0, 0, cap_z)])
     tools = [*_foot_tools(spec, 0, 0, 0), *_mount_tools(spec, 0, 0, cap_z)]
     return _label(_subtract(body, tools), "post")
 
 
+def _phone_wall(x0: float, x1: float) -> Part:
+    """Wall with a cylindrical top. The cap overlaps the web so the two fuse."""
+    radius = abs(x1 - x0) / 2
+    center_x = (x0 + x1) / 2
+    web = box_from(x0, PHONE_WALL_Y0, 0, x1, PHONE_WALL_Y1, PHONE_WALL_Z - radius + 0.4)
+    cap = y_cylinder(center_x, PHONE_WALL_Z - radius, PHONE_WALL_Y0, PHONE_WALL_Y1, 2 * radius)
+    return web + cap
+
+
 def build_phone(spec: Params) -> Part:
     """Pocket for the bought ear. Walls stop spin. An M3 screw clamps the ear down."""
     half = PHONE_SLOT_W / 2
-    pad = box_from(-16, PHONE_MOUNT_Y - 16, 0, 16, PHONE_WALL_Y1, FOOT_T)
-    walls = [
-        box_from(-16, PHONE_WALL_Y0, 0, -half, PHONE_WALL_Y1, PHONE_WALL_Z),
-        box_from(half, PHONE_WALL_Y0, 0, 16, PHONE_WALL_Y1, PHONE_WALL_Z),
-    ]
+    pad = round_box(-16, PHONE_MOUNT_Y - 16, 0, 16, PHONE_WALL_Y1, FOOT_T, 8)
+    walls = [_phone_wall(-16, -half), _phone_wall(half, 16)]
     ear_hole = _hole(0, PHONE_HOLE_Y, -0.2, FOOT_T + 0.2, spec.m3_through)
     nut = hex_pocket(spec.m3_hex_af, spec.m3_hex_h, at=(0, PHONE_HOLE_Y, 0))
     nut_slot = box_from(

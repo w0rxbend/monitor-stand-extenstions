@@ -11,6 +11,7 @@ from holder.common import (
     intersection_volume,
     one_solid,
     radial_ring_y,
+    round_box,
     void_open,
     wall_encloses,
     y_cylinder,
@@ -61,7 +62,7 @@ def _ear(spec: Params, height: float, side: float, y_sign: float) -> Part:
     root = side * (spec.column_w / 2)
     y_gap = y_sign * spec.seam_gap / 2
     y_out = y_sign * (spec.seam_gap / 2 + spec.ear_t)
-    return box_from(tip, y_gap, 0, root, y_out, height)
+    return round_box(tip, y_gap, 0, root, y_out, height, 4, along="y")
 
 
 def _as_part(solid) -> Part:
@@ -142,13 +143,15 @@ def _with_ribs(front: Part, back: Part, spec: Params) -> tuple[Part, Part]:
 def _with_boss(back: Part, spec: Params) -> Part:
     z0 = boss_z0(spec)
     # 0.2 mm overlap with the band so the flat back fuses. The outer face stays on boss_face_y.
-    boss = box_from(
+    boss = round_box(
         -spec.boss_w / 2,
         boss_face_y(spec) - spec.boss_depth - RIB_BITE,
         z0,
         spec.boss_w / 2,
         boss_face_y(spec),
         z0 + spec.boss_w,
+        8,
+        along="y",
     )
     back = back + boss
     y_inner = spec.column_d / 2

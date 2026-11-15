@@ -6,6 +6,8 @@ A TPU band clamps the column of the monitor stand. A PETG block on that band has
 
 The pictures are rasters of the STL triangles. They are not photographs. Rebuild them with `uv run --with numpy --with pillow python tools/render_gallery.py`.
 
+Outer corners are circular arcs, so those surfaces are cylinders.
+
 ## Shelf
 
 ![Camera plate, shaded from cam_plate.stl](docs/renders/platform.png)
