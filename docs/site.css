@@ -204,9 +204,11 @@ button:focus-visible {
 }
 
 .foot {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
   padding: 2rem var(--pad) 3rem;
   color: var(--quiet);
-  text-align: center;
 }
 
 @media (max-width: 40rem) {

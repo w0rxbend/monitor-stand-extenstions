@@ -35,19 +35,19 @@ From the repo root, with Python 3.12 and `rsvg-convert`:
 1. `uv sync`
 2. `uv run python -m holder`
 
-That builds every modeled part, runs `checks()`, and writes `out/`. A failed check exits before export. `out/` is generated and is not committed.
+That builds every modeled part, runs `checks()`, and writes `exports/` plus PNG previews in `out/`. A failed check exits before export. `exports/` is committed. `out/` is not.
 
 ## Commands
 
 | Command | Description |
 | --- | --- |
-| `uv run python -m holder` | Check, then write STEP, STL, and PNG into `out/` |
+| `uv run python -m holder` | Check, then write STEP, STL, and 3MF into `exports/`, and PNG into `out/` |
 | `uv run pytest` | Run `checks()`, the negative tests, and a STEP round-trip |
 | `uv run ruff check src tests` | Lint |
 
 ## Modeled parts
 
-`out/` holds `coupon_front`, `coupon_back`, `coupon_strip`, `band_front`, `band_back`, and `block`. Each has `.step`, `.stl`, and `.png`. Files are in print orientation, bed face on Z = 0. The PNG is a line preview.
+`exports/` holds `coupon_front`, `coupon_back`, `coupon_strip`, `band_front`, `band_back`, and `block`. Each has `.step`, `.stl`, and `.3mf`. The same names in `out/` are PNG line previews. Files are in print orientation, bed face on Z = 0. The release attaches the same STEP, STL, and 3MF files.
 
 | Part | Material | Bed |
 | --- | --- | --- |

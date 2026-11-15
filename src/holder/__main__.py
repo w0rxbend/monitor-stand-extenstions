@@ -1,4 +1,4 @@
-"""Build, check, and export. ``uv run python -m holder`` writes ``out/``."""
+"""Build, check, and export. ``uv run python -m holder`` writes ``exports/`` and ``out/``."""
 
 from pathlib import Path
 
@@ -45,12 +45,13 @@ def main() -> None:
     passed = _report(block.checks_vs_band(brace, band_front, band_back, spec)) and passed
     if not passed:
         raise SystemExit(1)
-    out = Path("out")
+    exports = Path("exports")
+    previews = Path("out")
     orientations = {**coupon.PRINT, **band.PRINT, **block.PRINT}
     for part in (front, back, strip, band_front, band_back, brace):
         printed = print_orientation(part, orientations[part.label])
-        export_part(printed, out / part.label)
-        preview_part(printed, out / f"{part.label}.png")
+        export_part(printed, exports / part.label)
+        preview_part(printed, previews / f"{part.label}.png")
 
 
 if __name__ == "__main__":

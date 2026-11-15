@@ -1,4 +1,4 @@
-"""STEP and STL export.
+"""STEP, STL, and 3MF export.
 
 build123d 0.11 meshes with isRelative=True, which scales the chord by edge length
 and adds about 0.5% mesh volume. An absolute mesh is applied first; OCCT keeps a
@@ -36,12 +36,24 @@ def _require(wrote: bool, path: Path) -> None:
         raise RuntimeError(f"export failed: {path}")
 
 
-def export_part(part: Part, stem: Path) -> tuple[Path, Path]:
-    """Write ``stem``.step and ``stem``.stl. ``stem`` has no suffix."""
+def _write_3mf(part: Part, path: Path) -> None:
+    mesher = Mesher(unit=Unit.MM)
+    mesher.add_shape(
+        part, linear_deflection=LIN, angular_deflection=ANG, part_number=part.label
+    )
+    mesher.write(path)
+    if not path.is_file() or path.stat().st_size < 4 or path.read_bytes()[:2] != b"PK":
+        raise RuntimeError(f"export failed: {path}")
+
+
+def export_part(part: Part, stem: Path) -> tuple[Path, Path, Path]:
+    """Write ``stem``.step, ``stem``.stl, and ``stem``.3mf. ``stem`` has no suffix."""
     stem.parent.mkdir(parents=True, exist_ok=True)
     step = stem.with_suffix(".step")
     stl = stem.with_suffix(".stl")
+    mesh = stem.with_suffix(".3mf")
     _require(export_step(part, step, unit=Unit.MM, timestamp=STEP_TIMESTAMP), step)
     _mesh(part)
     _require(export_stl(part, stl, tolerance=LIN, angular_tolerance=ANG, ascii_format=False), stl)
-    return step, stl
+    _write_3mf(part, mesh)
+    return step, stl, mesh

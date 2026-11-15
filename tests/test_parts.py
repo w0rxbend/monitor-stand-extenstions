@@ -25,14 +25,15 @@ from holder.params import Params
 from holder.preview import preview_part
 
 
-def test_placeholder_box_exports_step_stl_and_png(tmp_path: Path) -> None:
+def test_placeholder_box_exports_step_stl_3mf_and_png(tmp_path: Path) -> None:
     part = placeholder_box()
-    step, stl = export_part(part, tmp_path / "placeholder")
+    step, stl, mesh = export_part(part, tmp_path / "placeholder")
     png = tmp_path / "placeholder.png"
     preview_part(part, png)
 
     assert step.is_file() and step.stat().st_size > 0
     assert stl.is_file() and stl.stat().st_size > 0
+    assert mesh.suffix == ".3mf" and mesh.read_bytes()[:2] == b"PK"
     assert png.is_file() and png.stat().st_size > 0
     brought_back = import_step(step)
     assert abs(brought_back.volume - part.volume) / part.volume < 0.005
@@ -57,7 +58,7 @@ def test_coupon_checks_pass(tmp_path: Path) -> None:
     ):
         failed = [(name, detail) for name, ok, detail in check(part, spec) if not ok]
         assert not failed, failed
-        step, _stl = export_part(part, tmp_path / part.label)
+        step, _stl, _mesh = export_part(part, tmp_path / part.label)
         brought_back = import_step(step)
         drift = abs(brought_back.volume - part.volume) / part.volume
         assert drift < 0.005
@@ -105,7 +106,7 @@ def test_band_checks_pass(band_halves: tuple, tmp_path: Path) -> None:
     for part, check in ((front, band.checks_front), (back, band.checks_back)):
         failed = [(name, detail) for name, ok, detail in check(part, spec) if not ok]
         assert not failed, failed
-        step, _stl = export_part(part, tmp_path / part.label)
+        step, _stl, _mesh = export_part(part, tmp_path / part.label)
         brought_back = import_step(step)
         drift = abs(brought_back.volume - part.volume) / part.volume
         assert drift < 0.005
@@ -137,7 +138,7 @@ def test_block_checks_pass(band_halves: tuple, tmp_path: Path) -> None:
     assert printed.label == part.label
     assert abs(printed.bounding_box().min.Z) < 1e-4
     assert printed.bounding_box().size.Z == pytest.approx(spec.block_size, abs=0.05)
-    step, _stl = export_part(printed, tmp_path / part.label)
+    step, _stl, _mesh = export_part(printed, tmp_path / part.label)
     brought_back = import_step(step)
     assert abs(brought_back.volume - part.volume) / part.volume < 0.005
 
