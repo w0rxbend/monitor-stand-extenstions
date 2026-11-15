@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Holder. Three cameras behind the monitor.</title>
-  <meta name="description" content="A clamp for the monitor-stand column and a wide shelf for three cameras on 1/4-inch screws.">
+  <meta name="description" content="A clamp for the monitor-stand column and printed 1/4-inch mounts for cameras, a phone, and a GoPro.">
   <link rel="stylesheet" href="site.css">
 </head>
 <body>
@@ -14,10 +14,10 @@
     <nav aria-label="On this page">
       <ul>
         <li><a href="#shelf">Shelf</a></li>
-        <li><a href="#cradle">Cradle</a></li>
+        <li><a href="#arm">Arm</a></li>
+        <li><a href="#phone">Phone</a></li>
         <li><a href="#gopro">GoPro</a></li>
         <li><a href="#specs">Specs</a></li>
-        <li><a href="https://github.com/w0rxbend/monitor-stand-extenstions#quick-start">Build</a></li>
       </ul>
     </nav>
   </header>
@@ -25,9 +25,9 @@
   <main id="content">
     <section class="hero">
       <h1>Behind the monitor.</h1>
-      <p class="lede">Three cameras on one shelf. The shelf clamps to the column of the stand.</p>
+      <p class="lede">Three cameras on one plate. Two hinges. One 1/4-inch screw into the clamp.</p>
       <div class="frame">
-        <img src="renders/hero.jpg" alt="A wide shelf with three cameras sits behind a monitor, held by a two-link arm clamped to the stand column." width="1280" height="720">
+        <img src="renders/hero.png" alt="Shaded STL mesh of the clamp block, a two-hinge arm, and a long camera plate." width="1600" height="1000">
       </div>
     </section>
 
@@ -39,20 +39,38 @@
 
     <section class="chapter" id="shelf">
       <h2>One screw from below.</h2>
-      <p>Each camera sits on a 1/4"-20 screw that comes up through the plate and stops about 5 mm into the tripod socket. Slots let the spacing move between 70 and 110 mm.</p>
-      <img src="renders/platform.jpg" alt="Close view of three small cameras in a row on a charcoal shelf." width="1280" height="720">
+      <p>The center hole is fixed. Each side slot moves that camera from 70 to 110 mm away. The screw goes up into the camera. A second screw, at the back, holds the plate.</p>
+      <img src="renders/platform.png" alt="Shaded STL mesh of the camera plate, with two slots and a center hole." width="1600" height="1000">
     </section>
 
-    <section class="chapter" id="cradle">
-      <h2>The cradle takes the same stud.</h2>
-      <p>The phone holder has one ear and one hole. The ear sits in a pocket on a stud at the side of the upper link, so the three camera places stay empty.</p>
-      <img src="renders/phone.jpg" alt="A black phone cradle hangs from a stud on the side of the arm, next to the camera shelf." width="1280" height="720">
+    <section class="chapter" id="arm">
+      <h2>One hinge, or two.</h2>
+      <p>The base and the link are one hinge. The mid link makes two. An M6 bolt is the axle. The knob and the washers are bought.</p>
+      <img src="renders/arm.png" alt="Shaded STL mesh of the block with a one-hinge arm on its top face." width="1600" height="1000">
+    </section>
+
+    <section class="chapter" id="phone">
+      <h2>The phone leans back.</h2>
+      <p>The cradle is about 80 mm wide. The phone sticks out the top. The foot uses the same 1/4-inch screw as the plate.</p>
+      <img src="renders/phone.png" alt="Shaded STL mesh of the phone cradle and its mounting foot." width="1600" height="1000">
     </section>
 
     <section class="chapter" id="gopro">
-      <h2>GoPro uses a bought buckle.</h2>
-      <p>The camera has two fingers, not a threaded socket. A three-prong buckle with a 1/4"-20 thread screws onto a stud at the end of the shelf. You print the stud. You buy the buckle.</p>
-      <img src="renders/gopro.jpg" alt="A small action camera sits in a three-prong buckle at the end of the shelf." width="1280" height="720">
+      <h2>Buy the buckle.</h2>
+      <p>Print the foot, not the prongs. A 1/4-inch screw drops into the boss and the buckle threads onto it.</p>
+      <img src="renders/gopro.png" alt="Shaded STL mesh of the GoPro foot, with a mounting hole and a round boss." width="1600" height="1000">
+    </section>
+
+    <section class="chapter" id="zve10">
+      <h2>One ZV-E10.</h2>
+      <p>The body is 115.2 mm wide, so it does not share the three-camera plate. The socket position is unpublished. The screw sits in a slot.</p>
+      <img src="renders/zve10.png" alt="Shaded STL mesh of the ZV-E10 plate, with a lip, a slot, and a rear mounting hole." width="1600" height="1000">
+    </section>
+
+    <section class="chapter" id="post">
+      <h2>Or skip the arm.</h2>
+      <p>The post raises the same 32 mm face. A ball head you already own bolts to that screw.</p>
+      <img src="renders/post.png" alt="Shaded STL mesh of the post, a column between two square pads." width="1600" height="1000">
     </section>
 
     <section class="specs" id="specs">
@@ -60,26 +78,25 @@
       <dl>
         <div>
           <dt>Column</dt>
-          <dd>40.2 mm wide, 55.5 mm deep. A TPU band in two halves clamps it.</dd>
-        </div>
-        <div>
-          <dt>Hinges</dt>
-          <dd>Both turn left to right. The lower one sets height. The upper one levels the shelf.</dd>
-        </div>
-        <div>
-          <dt>Shelf</dt>
-          <dd>About 300 × 60 × 8 mm, PETG. Three 6.6 mm holes for 1/4"-20 screws.</dd>
+          <dd>40.2 mm wide, 55.5 mm deep. A TPU band in two halves is the clamp. The ribs still cut into the column, so do not print the band yet.</dd>
         </div>
         <div>
           <dt>Foot</dt>
-          <dd>Four M3 nuts on a 20 mm square, and one 1/4"-20 nut in the center.</dd>
+          <dd>Four M3 nuts on a 20 mm square, and one 1/4"-20 nut in the center. Bolts enter from above.</dd>
         </div>
         <div>
-          <dt>Lock</dt>
-          <dd>M6 knob, a toothed disc, and steel washers. PETG on PETG creeps.</dd>
+          <dt>Plate</dt>
+          <dd>300 × 64 × 8 mm, PETG. Center hole, two slots, one mounting hole at the back.</dd>
+        </div>
+        <div>
+          <dt>Hinges</dt>
+          <dd>M6 clearance, 6.6 mm. Steel washers. The tooth lock is bought, not printed.</dd>
+        </div>
+        <div>
+          <dt>Pictures</dt>
+          <dd>Shaded from the STL meshes. Not photographs, and not a printed fit.</dd>
         </div>
       </dl>
-      <p class="note">The band, the coupon, and the block are what the repository builds today. The arm and the shelf are the design in these pictures.</p>
     </section>
   </main>
 

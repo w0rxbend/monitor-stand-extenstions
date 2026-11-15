@@ -1,32 +1,54 @@
 # Monitor stand holder
 
-A TPU band clamps the column of the monitor stand. A two-hinge arm on that band holds a wide shelf behind the top of the screen. Three cameras bolt to the shelf on 1/4"-20 screws. The same screw takes a phone cradle or a GoPro buckle.
+A TPU band clamps the column of the monitor stand. A PETG block on that band has one 1/4"-20 nut. Every accessory below bolts to that nut, or to the same nut on an arm or a post.
 
-![Shelf with three cameras behind the monitor](docs/renders/hero.jpg)
+![Block, two-hinge arm, and camera plate, shaded from the STL meshes](docs/renders/hero.png)
 
-The band, the coupon, and the L block are in the model. The arm, the shelf, and the two studs are the arrangement in these pictures. They are not exported yet. Dimensions for the modeled parts are in `PLAN.md`.
+The pictures are rasters of the STL triangles. They are not photographs. Rebuild them with `uv run --with numpy --with pillow python tools/render_gallery.py`.
 
 ## Shelf
 
-![Three cameras on the shelf, each on a 1/4-inch screw](docs/renders/platform.jpg)
+![Camera plate, shaded from cam_plate.stl](docs/renders/platform.png)
 
-The shelf is a PETG plate, about 300 × 60 × 8 mm, level behind the top edge of the screen. Three slots run along the plate, so the center spacing can sit between 70 and 110 mm. Each station is a 1/4"-20 clearance hole, 6.6 mm. The screw comes up from below and goes about 5 mm into the camera's tripod socket. Screw length is the 8 mm plate plus that 5 mm. A longer screw bottoms out in the socket.
+`cam_plate` is a PETG plate, 300 × 64 × 8 mm. The center camera hole is fixed. Each side slot lets that camera sit 70 to 110 mm from the center. The screw comes up from below and goes about 5 mm into the camera. Screw length is the 8 mm plate plus that 5 mm. A longer screw bottoms out in the socket.
 
-Both hinges turn about the left-right axis. The lower hinge sets the height and how far the plate sits behind the panel. The upper hinge levels the plate. An M6 knob, a toothed disc, and steel washers lock each hinge. PETG against PETG creeps under three cameras.
+The plate's own mounting hole is a separate 6.6 mm hole at the back, with the screw head on top. That screw goes down into a mount-face nut. One screw cannot hold both the plate and a camera.
 
-The foot of the arm bolts to the top face of the block: four M3 nuts on a 20 mm square, and one 1/4"-20 nut in the center. The nuts sit in side slots. There are no heat-set inserts.
+Three Sony ZV-E10 bodies do not fit on this plate. The body is 115.2 mm wide. Use `zve10` for that camera.
+
+## Arm
+
+![One-hinge arm on the block, shaded from the STL meshes](docs/renders/arm.png)
+
+`hinge_base` plus `hinge_link` is one hinge. Add `hinge_mid` between them for two hinges. Each joint is an M6 clearance hole, 6.6 mm. The knob, the washers, and a toothed disc are bought. They are not in the model. PETG against PETG creeps, so do not run the joint without the washers.
+
+The outer link ends in a 32 mm face with a captive 1/4"-20 nut. The slot for that nut opens to the side. Any foot in this set bolts to that face the same way it bolts to the block.
 
 ## Phone cradle
 
-![Phone cradle on a stud at the side of the upper link](docs/renders/phone.jpg)
+![Phone cradle, shaded from phone.stl](docs/renders/phone.png)
 
-The cradle has one ear and one hole. A 1/4"-20 stud, about 8 mm of thread, sticks out of the side of the upper link. The ear sits in a pocket as deep as the ear, and a knob clamps it. The three camera stations stay free.
+`phone` is a printed cradle. The channel is about 80 mm wide and 12 mm deep. The phone leans on the back and sticks out the top. The foot bolts down with a 1/4"-20 screw into a mount face.
 
 ## GoPro
 
-![GoPro in a three-prong buckle on a stud at the end of the shelf](docs/renders/gopro.jpg)
+![GoPro stud foot, shaded from gopro.stl](docs/renders/gopro.png)
 
-The camera body has two fingers, not a 1/4" thread. A bought three-prong buckle with a female 1/4"-20 thread screws onto a stud at the end of the shelf. The camera's own thumbscrew sets the tilt. Print the stud. Buy the buckle. Printed prongs snap.
+The camera has two fingers, not a 1/4" thread. Buy the three-prong buckle. Do not print the prongs.
+
+`gopro` is a foot with a boss. A 13 mm pocket, 5 mm deep, opens through the bottom. Drop a 1/4"-20 screw in so the thread sticks out of the boss, then bolt the foot down. The mount face closes the pocket, and the bought buckle threads onto the screw. The 13 × 5 mm pocket is not checked against a specific screw.
+
+## ZV-E10
+
+![ZV-E10 plate, shaded from zve10.stl](docs/renders/zve10.png)
+
+Sony lists the body as 115.2 × 64.2 × 44.8 mm from grip to monitor. The tripod-socket offset is not on that page, so `zve10` uses a 24 mm slot. The screw comes up from below. The hole at the back of the plate bolts to a mount face.
+
+## Post
+
+![Post, shaded from post.stl](docs/renders/post.png)
+
+`post` is a foot, an 18 mm column, and a mount face on top. The top nut is the same captive 1/4"-20 nut as the block. A bought ball head can use that screw and no other part. The ball head is not modeled.
 
 ## Quick start
 
@@ -35,7 +57,7 @@ From the repo root, with Python 3.12 and `rsvg-convert`:
 1. `uv sync`
 2. `uv run python -m holder`
 
-That builds every modeled part, runs `checks()`, and writes `exports/` plus PNG previews in `out/`. A failed check exits before export. `exports/` is committed. `out/` is not.
+That builds every modeled part, runs `checks()`, and writes `exports/` plus PNG line previews in `out/`. A failed check exits before export. `exports/` is committed. `out/` is not.
 
 ## Commands
 
@@ -43,38 +65,49 @@ That builds every modeled part, runs `checks()`, and writes `exports/` plus PNG 
 | --- | --- |
 | `uv run python -m holder` | Check, then write STEP, STL, and 3MF into `exports/`, and PNG into `out/` |
 | `uv run pytest` | Run `checks()`, the negative tests, and a STEP round-trip |
-| `uv run ruff check src tests` | Lint |
+| `uv run ruff check src tests tools` | Lint |
+| `uv run --with numpy --with pillow python tools/render_gallery.py` | Shade `docs/renders` from STL meshes |
 
 ## Modeled parts
 
-`exports/` holds `coupon_front`, `coupon_back`, `coupon_strip`, `band_front`, `band_back`, and `block`. Each has `.step`, `.stl`, and `.3mf`. The same names in `out/` are PNG line previews. Files are in print orientation, bed face on Z = 0. The release attaches the same STEP, STL, and 3MF files.
+Each name in `exports/` has `.step`, `.stl`, and `.3mf`. Files are in print orientation, bed face on Z = 0. The release attaches the same files. `out/` holds line previews only.
 
-| Part | Material | Bed |
+| Part | Material | What it is |
 | --- | --- | --- |
-| `coupon_front`, `coupon_back` | TPU 95A | bottom |
-| `coupon_strip` | PETG | bottom |
-| `band_front`, `band_back` | TPU 95A | bottom, band axis vertical |
-| `block` | PETG | on its side (−X face down) |
+| `coupon_front`, `coupon_back` | TPU 95A | Column fit coupon |
+| `coupon_strip` | PETG | Nut fit coupon |
+| `band_front`, `band_back` | TPU 95A | Column clamp |
+| `block` | PETG | Foot on the band. 4× M3 and one 1/4"-20 on top |
+| `cam_plate` | PETG | Three camera stations |
+| `hinge_base`, `hinge_link` | PETG | One hinge |
+| `hinge_mid` | PETG | Extra hinge between those two |
+| `phone` | PETG | Cradle |
+| `gopro` | PETG | Stud foot for a bought buckle |
+| `zve10` | PETG | One ZV-E10 |
+| `post` | PETG | Raised mount face |
 
-Print the coupon first (about 25 minutes). The band halves should clamp with the 4 mm seam gap still open. The M3 nut and the 1/4" nut should press into the strip and hold. The strip is a fit check, not part of the assembly.
+Print the coupon first (about 25 minutes). The M3 nut and the 1/4" nut should press into the strip and hold. The strip is a fit check, not part of the assembly.
 
-Passing CAD checks is not a printed fit. The coupon, then a day with a phone on the arm, is the proof.
+The band's grip ribs still intersect the column by about 1 mm, so the band will not slide on. Do not print the band until that fit is fixed. The coupon has not been printed. `column_r` (12 mm) and the 1/4" pocket (11.4 mm across-flats, 5.8 mm thick) are estimates.
+
+Passing CAD checks is not a printed fit.
 
 ## Print
 
-- Band: TPU 95A, 25 mm/s, 4 walls, 100% infill in the boss.
-- Block: PETG, 4 walls, 40% gyroid. Horizontal holes print about 0.15 mm small. The 3.4 mm through-hole covers that.
-- Plate is 12 mm deep (nut plus a wall on both sides). The arm section is 16 mm so the 1/4" pocket stays above the arm.
+- Band, after the rib fit is fixed: TPU 95A, 25 mm/s, 4 walls, 100% infill in the boss.
+- Block and the accessories: PETG, 4 walls, 40% gyroid. Horizontal holes print about 0.15 mm small.
+- The block lies on its side (−X down) so the nut slots stay off the bed. The accessories lie on their foot (Z down).
 
 ## Hardware
 
-- 4 × M3×20 + washer + nut (seams)
+- 4 × M3×20 + washer + nut (band seam)
 - 4 × M3×16 + nut (boss to block)
-- 4 × M3 nut (top face)
-- 1 × 1/4"-20 nut (top face)
-- For each camera: 1 × 1/4"-20 screw, plate thickness plus 5 mm
-- For the phone ear or the GoPro buckle: 1 × 1/4"-20 stud, about 8 mm of thread above the face
-- 2 × M6 knob, toothed disc, and steel washers (the two hinges)
+- 4 × M3 nut (block top)
+- 1 × 1/4"-20 nut in the block, plus one in each mount face you use (`hinge_link`, `post`, and each camera does not use a nut in the plate)
+- Each camera: 1 × 1/4"-20 screw, plate thickness plus about 5 mm
+- Each foot: 1 × 1/4"-20 screw into the mount-face nut
+- GoPro: one more 1/4"-20 screw as the stud, and a bought three-prong buckle
+- Each hinge: 1 × M6 bolt, knob, and steel washers
 
 ## After the coupon
 
@@ -84,8 +117,6 @@ Leave `column_d` and each nut's across-flats alone until the coupon has been pri
 - Band does not fit: raise the binding dimension by 1 mm.
 - Nut pocket too tight: add 0.1 mm to that pocket's across-flats.
 
-`column_r` (12 mm) and the 1/4" pocket (11.4 mm across-flats, 5.8 mm thick) are estimates. The coupon is how you confirm the 1/4" nut. The shelf length is an estimate too: measure one camera body before locking the 70–110 mm slot range.
-
 ## Layout
 
-`src/holder/params.py` holds the frozen dimensions. Part modules build geometry and return `checks()`. They do not export. `export.py` writes STEP and STL and does not repair geometry. Builders and pytest both run the same checks.
+`src/holder/params.py` holds the frozen column and fastener dimensions. Accessory dimensions that are not on the column live in `src/holder/accessories.py`. Part modules build geometry and return `checks()`. They do not export. `export.py` writes STEP, STL, and 3MF and does not repair geometry. Builders and pytest both run the same checks.
