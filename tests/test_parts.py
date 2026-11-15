@@ -8,7 +8,7 @@ import pytest
 from build123d import Box, Pos
 
 from holder import band, block, coupon, registry
-from holder.common import clash_checks, cut
+from holder.common import clash_checks, cut, rod
 from holder.export import STEP_VOLUME_TOL, export_part, step_volume, to_print, write_step
 from holder.params import DEFAULT, MATERIALS
 
@@ -131,8 +131,9 @@ def full_band_back(p, shift_boss=None, plug_recess=False):
     """The full back half (band_back) with one defect at boss bolt x=+10 z=6: the through-hole
     moved by `shift_boss`, or the head recess left out."""
     cutters = []
-    for label, cs in band.cutter_groups(p, band.BACK, p.band_h, p.ear_bolt_z, boss=True):
-        if label == BOSS_DEFECT:
+    for group in band.cutter_groups(p, band.BACK, p.band_h, p.ear_bolt_z, boss=True):
+        cs = group.cutters
+        if group.label == BOSS_DEFECT:
             hole, recess, relief = cs
             if shift_boss:
                 hole = Pos(*shift_boss) * hole
@@ -141,19 +142,29 @@ def full_band_back(p, shift_boss=None, plug_recess=False):
     return cut(band.envelope(p, band.BACK, p.band_h, boss=True), cutters)
 
 
-def defective_block(p, shift_plate=None, plug_top_m3=False):
-    """The block with one defect: the plate hole at x=10 z=6 moved by `shift_plate`, or the
-    nut pocket of the first top M3 (x=-10, front row) left out."""
+def defective_block(p, shift_plate=None, plug_top_m3=False, plain_bed_mouths=False):
+    """The block with one defect: the plate hole at x=10 z=6 moved by `shift_plate`, the
+    nut pocket of the first top M3 (x=-10, front row) left out, or the bed-side slot mouths
+    left without their chamfer."""
     x, y = block.top_m3_points(p)[0]
     plugged = f"top M3 x={x:g} y={y:g}"
     cutters = []
-    for label, (hole, pocket) in block.cutter_groups(p):
-        if label == "plate M3 x=10 z=6" and shift_plate:
+    for group in block.cutter_groups(p):
+        hole, *rest = group.cutters  # [hole, (mouth chamfer,) pocket]
+        pocket = rest[-1]
+        if group.label == "plate M3 x=10 z=6" and shift_plate:
             hole = Pos(*shift_plate) * hole
         cutters.append(hole)
-        if not (label == plugged and plug_top_m3):
+        if not plain_bed_mouths:
+            cutters += rest[:-1]
+        if not (group.label == plugged and plug_top_m3):
             cutters.append(pocket)
     return cut(block.envelope(p), cutters)
+
+
+def stray_hole(part, origin, axis, d=3.4, length=40):
+    """`part` with an extra hole that no cutter of the design explains."""
+    return part - rod(d, length, origin=origin, axis=axis)
 
 
 NEGATIVE = {
@@ -241,6 +252,63 @@ def test_defect_fails_its_check(case):
     assert any("as designed" in name for name in failed)
 
 
+VOID = "no void beyond the designed ones"
+
+
+def _block_riser_hole(d):
+    _, yc, zt = block.top_center(DEFAULT)
+    return stray_hole(built(block.NAME), (-20, yc, zt - 25), (1, 0, 0), d=d)
+
+
+@pytest.mark.parametrize(
+    "checks_fn, make",
+    [
+        (block.checks, lambda: _block_riser_hole(5.0)),  # other diameter than any design hole
+        (block.checks, lambda: _block_riser_hole(3.4)),  # M3 size, but along X
+        (  # through the front wall of the band slice, between the seams
+            coupon.checks_front,
+            lambda: stray_hole(built(coupon.FRONT_NAME), (0, -36, 6), (0, 1, 0), length=8),
+        ),
+    ],
+    ids=["block 5 mm along X", "block 3.4 mm along X", "band slice front wall"],
+)
+def test_stray_hole_fails_the_void_check(checks_fn, make):
+    failed = failed_names(checks_fn(make(), DEFAULT))
+    assert VOID in failed
+    assert "one valid solid" not in failed
+
+
+def test_seam_hole_breaking_out_of_the_ear_tip_fails_its_wall():
+    p = replace(DEFAULT, ear_len=3.0)  # the 3.4 hole reaches 0.2 mm past the ear tip
+    with pytest.raises(ValueError, match="ear tip to seam hole"):
+        p.validate()
+    checks = band.checks_front(band.build_front(p), p)
+    walls = [c for c in checks if c.name.startswith("wall around seam bolt")]
+    assert len(walls) == 4
+    assert all(not c.ok and c.measured.startswith("0.000") for c in walls)
+
+
+def test_thin_band_wall_fails_the_ring_wall_check():
+    p = replace(DEFAULT, band_wall=1.0)  # TPU wall_min 1.2
+    check = next(
+        c
+        for c in coupon.checks_front(coupon.build_front(p), p)
+        if c.name == "band wall around the inside"
+    )
+    assert not check.ok and check.measured.startswith("1.000")
+
+
+def test_bed_slot_mouths_without_chamfer_fail_the_elephant_foot_check():
+    plain = defective_block(DEFAULT, plain_bed_mouths=True)
+    failed = failed_names(block.bed_mouth_checks(plain, DEFAULT))
+    bed_side = [n.label for n in block.nuts(DEFAULT) if n.on_bed]
+    assert len(bed_side) == 4  # every nut at x < 0: 2 plate, 2 top M3
+    assert failed == {
+        f"{label}: slot mouth on the bed clears the nut past elephant's foot" for label in bed_side
+    }
+    assert not failures(block.bed_mouth_checks(built(block.NAME), DEFAULT))
+
+
 def test_shifted_seam_hole_fails_the_seam_coaxial_check():
     parts = {
         coupon.FRONT_NAME: built(coupon.FRONT_NAME),
@@ -283,8 +351,8 @@ REACH = "M3x{:g} reaches through the plate nut"
     "length, reaches, room", [(14.0, False, True), (16.0, True, True), (20.0, True, False)]
 )
 def test_boss_bolt_length_against_the_measured_stack(length, reaches, room):
-    # Head floor to boss face 11 mm TPU + 1.5 mm PETG wall + 2.4 mm nut = 14.9 mm;
-    # the blind hole ends 8.1 mm into the plate, an M3x20 tip would end 9 mm in.
+    # Washer 0.5 + head floor to boss face 10.5 mm TPU + 1.5 mm PETG wall + 2.4 mm nut
+    # = 14.9 mm; the blind hole ends 8.1 mm into the plate, an M3x20 tip would end 9 mm in.
     p = replace(DEFAULT, boss_bolt_len=length)
     back = block.band_parts(p)[band.BACK_NAME]
     checks = block.boss_hardware_checks(built(block.NAME), back, p)
@@ -338,6 +406,7 @@ def test_default_params_valid():
         ("rib_pitch", 2.5),  # ribs 3 mm wide at the face would overlap
         ("boss_w", 36.0),  # boss taller than the 35 mm band
         ("m3_bolt_head_h", 2.2),  # button head taller than its 2 mm recess
+        ("m3_head_d", 7.0),  # the 7.0 washer under the boss bolt head does not fit
     ],
 )
 def test_validate_rejects_bad_values(field, value):
@@ -355,6 +424,9 @@ def test_validate_rejects_non_numbers():
     [
         {"band_wall": 1.1},  # TPU wall_min 1.2
         {"ear_t": 3.7},  # 1.1 left behind the 2.6 deep nut pocket
+        {"ear_len": 3.0},  # the seam hole breaks out of the ear tip
+        {"ear_len": 8.5},  # 0.96 mm from the seam nut pocket corner to the ear tip
+        {"bed_slot_flare": 3.0},  # the bed-side slot chamfer reaches the block edge
         {"boss_w": 26.0},  # M3 head recess breaks the boss edge
         {"block_size": 26.0},  # M3 nut pocket breaks the block edge
         {"plate_nut_wall": 1.2},  # PETG wall_min 1.5 in front of the plate nuts

@@ -32,16 +32,23 @@ Cross-section (top view; Z up, +Y back, origin on the column axis at the band bo
 - Seam bolts run along +Y through both ears, centered on the ear. The head and washer sit
   on the front ear's outer face (reachable with a hex key from the front); the nut sits in
   a hex pocket in the back ear's outer face, so tightening pulls it onto the pocket floor
-  and the hex stops it from spinning. The pocket's corners point up and down (Z), so with
-  the band axis vertical on the bed its roof is a 60 degree peak that prints without support.
+  and the hex stops it from spinning. With the band axis vertical on the bed the pocket is a
+  horizontal hex hole. It lies with a flat up: the roof is a 3.3 mm bridge (af / sqrt(3))
+  between two side faces 60 degrees from horizontal. With a corner up instead, the roof
+  would be two faces only 30 degrees from horizontal, a long shallow overhang that sags in
+  TPU. A bridge this short normally prints clean, but any sag shrinks the pocket the nut is
+  pressed into: the coupon is the real test.
 - Boss (full back half only): boss_w square face (X x Z) boss_depth proud of the outer back
   face, fused down onto the band's rounded back corners (the flat part of the back is only
   16 mm wide). Its bottom is flush with the band bottom, so it stands on the bed instead of
   overhanging 1.5 mm. 4 x M3 through-holes along +Y on an m3_spacing square centered on the
-  face. The heads go in from the column side: each hole has a head recess (m3_head_d) whose
-  floor sits m3_head_h + m3_head_extra behind the inner face, so a head m3_head_h tall ends
-  m3_head_extra below the inner face and further below the rib tips. The recess cuts the
-  ribs it crosses, so nothing of the band is left between a head and the column.
+  face. The heads go in from the column side, each on a DIN 125 washer: the washer spreads
+  the clamp load on the TPU (a bare ISO 7380 head bears on only about 16 mm2 and would sink
+  in, relaxing the preload). Each hole has a head recess (m3_head_d, wide enough for the
+  washer) whose floor sits m3_head_h + m3_washer_t + m3_head_extra behind the inner face, so
+  a head m3_head_h tall on its washer ends m3_head_extra below the inner face and further
+  below the rib tips. The recess cuts the ribs it crosses, so nothing of the band is left
+  between a head and the column.
 
 Contacts. As built, each half keeps the fit to the column (no contact). Clamped, each half
 moves along Y onto the column; then the only contact is rib tips vs column (CLAMP_CONTACTS,
@@ -57,6 +64,8 @@ from holder.common import (
     TOUCH_EPS,
     VOLUME_EPS,
     Check,
+    CutterGroup,
+    Mouth,
     PartSpec,
     at_least,
     cavity_check,
@@ -77,6 +86,7 @@ from holder.common import (
     planar_faces,
     rod,
     single_solid,
+    void_volume_check,
     wall_around,
 )
 from holder.params import MATERIALS, TPU, Params
@@ -224,17 +234,23 @@ def bolt_cutters(p: Params, half: int, seam: int, z: float) -> list[Part]:
     cutters = [rod(p.m3_through, -2 * y_start, origin=(x, y_start, z), axis=BOLT_AXIS)]
     if half == NUT_HALF:
         nut_bottom = ear_face_y(p, half) - p.m3_hex_h
-        # slot_dir only orients the hex here (no slot): corners along Z, flats facing +-X.
+        # slot_dir only orients the hex here (no slot): flats facing +-Z, so printed with
+        # the band axis vertical the roof is a flat bridge (see the module docstring).
         cutters.append(
             hex_pocket(
                 p.m3_hex_af,
                 p.m3_hex_h + 1,  # 1 mm past the ear face
                 origin=(x, nut_bottom, z),
                 axis=BOLT_AXIS,
-                slot_dir=(0, 0, 1),
+                slot_dir=(1, 0, 0),
             )
         )
     return cutters
+
+
+def bolt_mouths(p: Params, half: int) -> list[Mouth]:
+    """The faces a seam bolt's hole and pocket open on: the ear's seam face and outer face."""
+    return [((0, half * p.seam_gap / 2, 0), BOLT_AXIS), ((0, ear_face_y(p, half), 0), BOLT_AXIS)]
 
 
 # --- Boss ----------------------------------------------------------------------------------------
@@ -251,7 +267,8 @@ def boss_center_z(p: Params) -> float:
 
 
 def head_floor_y(p: Params) -> float:
-    """y of the head recess floor: m3_head_h + m3_head_extra behind the inner face."""
+    """y of the head recess floor (the washer seat): m3_head_recess_depth behind the inner
+    face."""
     return face_profile(p)[1] / 2 + p.m3_head_recess_depth
 
 
@@ -298,18 +315,23 @@ def boss_cutters(p: Params, x: float, z: float, h: float) -> list[Part]:
 # --- Band half -----------------------------------------------------------------------------------
 
 
+def half_space(p: Params, half: int, h: float) -> Part:
+    """A box holding everything on one half's side of the seams (y * half >= seam_gap / 2),
+    1 mm past the band at both ends."""
+    _, d, _ = outer_profile(p)
+    size = 2 * (d + p.ear_len + p.boss_depth)  # larger than the whole band
+    return Pos(0, half * (p.seam_gap / 2 + size / 2), h / 2) * Box(size, size, h + 2)
+
+
 def envelope(p: Params, half: int, h: float, boss: bool = False) -> Part:
     """One band half before any hole: half of the ribbed ring, its two ears, and the boss
     (back half only)."""
     if boss and half != BACK:
         raise ValueError("the boss sits on the back half")
-    _, d, _ = outer_profile(p)
-    size = 2 * (d + p.ear_len + p.boss_depth)  # larger than the whole band
-    keep = Pos(0, half * (p.seam_gap / 2 + size / 2), h / 2) * Box(size, size, h + 2)
     body = prism(outer_profile(p), 0, h)
     if boss:
         body += boss_block(p)
-    body = (body - cavity(p, h)) & keep
+    body = (body - cavity(p, h)) & half_space(p, half, h)
     # The ear starts half-way into the side wall, so it fuses with it.
     ear_start = wall_x(p) - p.band_wall / 2
     ear_w = p.ear_len + p.band_wall / 2
@@ -320,21 +342,37 @@ def envelope(p: Params, half: int, h: float, boss: bool = False) -> Part:
 
 
 def cutter_groups(p: Params, half: int, h: float, bolt_zs, boss: bool = False):
-    """[(label, cutters)] per bolt: the seam bolts, then the boss bolts."""
+    """[CutterGroup] per bolt: the seam bolts, then the boss bolts. A boss bolt opens on the
+    boss face; its recess opens into the band inside (half_checks passes that as open_to)."""
     groups = [
-        (f"seam bolt {SEAM_NAMES[seam]} z={z:g}", bolt_cutters(p, half, seam, z))
+        CutterGroup(
+            f"seam bolt {SEAM_NAMES[seam]} z={z:g}",
+            bolt_cutters(p, half, seam, z),
+            bolt_mouths(p, half),
+        )
         for seam, z in bolts(bolt_zs)
     ]
     if boss:
+        boss_face = [((0, boss_face_y(p), 0), BOLT_AXIS)]
         groups += [
-            (f"boss bolt x={x:g} z={z:g}", boss_cutters(p, x, z, h)) for x, z in boss_bolts(p)
+            CutterGroup(f"boss bolt x={x:g} z={z:g}", boss_cutters(p, x, z, h), boss_face)
+            for x, z in boss_bolts(p)
         ]
     return groups
 
 
+def inside_mouths(p: Params, half: int, h: float) -> list[Mouth]:
+    """The faces the band inside opens on, within one half: the seam faces, bottom and top."""
+    return [
+        ((0, half * p.seam_gap / 2, 0), BOLT_AXIS),
+        ((0, 0, 0), (0, 0, 1)),
+        ((0, 0, h), (0, 0, 1)),
+    ]
+
+
 def build_half(p: Params, half: int, h: float, bolt_zs, boss: bool = False) -> Part:
     """A band half `h` tall with seam bolts at heights `bolt_zs`, in assembly coordinates."""
-    cutters = [c for _, cs in cutter_groups(p, half, h, bolt_zs, boss) for c in cs]
+    cutters = [c for g in cutter_groups(p, half, h, bolt_zs, boss) for c in g.cutters]
     return cut(envelope(p, half, h, boss), cutters)
 
 
@@ -379,15 +417,17 @@ def rib_checks(part: Part, p: Params, half: int, h: float) -> list[Check]:
 
 
 def head_solids(part: Part, p: Params, axes: list[Axis]) -> list[Part]:
-    """A bolt head (m3_head_d x m3_head_h, the size the recess is made for) standing on each
-    recess floor. The floor is the deepest circular edge of the recess around each axis."""
+    """A bolt head on its washer (m3_head_d wide, m3_washer_t + m3_head_h tall: the stack the
+    recess is made for) standing on each recess floor. The floor is the deepest circular
+    edge of the recess around each axis."""
     rims = circles(part, p.m3_head_d / 2, direction=BOLT_AXIS)
+    stack = p.m3_washer_t + p.m3_head_h
     heads = []
     for ax in axes:
         ys = [c.axis.position.Y for c in rims if coaxial(c.axis, ax)]
         if ys:
             x, z = ax.position.X, ax.position.Z
-            heads.append(rod(p.m3_head_d, p.m3_head_h, origin=(x, max(ys), z), axis=(0, -1, 0)))
+            heads.append(rod(p.m3_head_d, stack, origin=(x, max(ys), z), axis=(0, -1, 0)))
     return heads
 
 
@@ -418,7 +458,7 @@ def half_checks(part: Part, p: Params, half: int, h: float, bolt_zs, boss=False)
     wall_min = MATERIALS[MATERIAL].wall_min
     env = envelope(p, half, h, boss)
     groups = cutter_groups(p, half, h, bolt_zs, boss)
-    voids = [(label, cavity_pieces(env, cutters)) for label, cutters in groups]
+    voids = [(g, cavity_pieces(env, g.cutters)) for g in groups]
     seam_bolts = bolts(bolt_zs)
     n = len(seam_bolts)
     n_boss = len(boss_bolts(p)) if boss else 0
@@ -441,15 +481,31 @@ def half_checks(part: Part, p: Params, half: int, h: float, bolt_zs, boss=False)
         checks.append(count_is("M3 head recesses", len(recesses), 0))
     all_pieces = [piece for _, pieces in voids for piece in pieces]
     checks.append(cavity_check("holes and pockets as designed", part, all_pieces, env))
+    checks.append(void_volume_check("no void beyond the designed ones", part, all_pieces, env))
     inside = cavity(p, h)
-    for label, pieces in voids:
-        opening = None
-        if label.startswith("boss"):
-            # [hole, recess, rib relief]: the recess opens into the band inside, widened by
-            # the rib relief. Their faces are the mouth, not walls; the relief has no walls.
-            pieces, opening = pieces[:2], Compound([inside, pieces[2]])
-        wall = wall_around(part, pieces, open_to=opening)
-        checks.append(at_least(f"wall around {label}", wall, wall_min))
+    # Boss bolts: [hole, recess, rib relief]. Every recess opens into the band inside, which
+    # the rib reliefs widen; together they are one space. The inner face between the ribs
+    # runs across the reliefs from one recess to the next, so it ends on their rims: the
+    # opening holds all of them, not just the bolt's own.
+    boss_voids = [pieces for g, pieces in voids if g.label.startswith("boss")]
+    boss_pieces = [piece for pieces in boss_voids for piece in pieces]
+    opening = Compound([inside, *(piece for pieces in boss_voids for piece in pieces[1:])])
+    for group, pieces in voids:
+        open_to = None
+        if group.label.startswith("boss"):
+            pieces, open_to = pieces[:2], opening
+        wall = wall_around(part, pieces, mouths=group.mouths, open_to=open_to)
+        checks.append(at_least(f"wall around {group.label}", wall, wall_min))
+    # The ring itself: from the band inside (this half of it) to every other face. The boss
+    # bolts open into it; their walls are measured above.
+    own_inside = inside & half_space(p, half, h)
+    wall = wall_around(
+        part,
+        own_inside,
+        mouths=inside_mouths(p, half, h),
+        open_to=Compound(boss_pieces) if boss_pieces else None,
+    )
+    checks.append(at_least("band wall around the inside", wall, wall_min))
     return checks
 
 

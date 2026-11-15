@@ -23,9 +23,11 @@ from build123d import (
     Part,
     Plane,
     Polygon,
+    Pos,
     Shape,
     Vector,
     extrude,
+    loft,
 )
 from OCP.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_Surface
 from OCP.BRepTools import BRepTools
@@ -34,6 +36,9 @@ from OCP.GeomAbs import GeomAbs_Circle, GeomAbs_Cylinder
 from holder.params import MATERIALS, Params
 
 VOLUME_EPS = 1e-6  # mm3: an intersection at or below this counts as zero
+# mm3: part volume vs design. About a 0.4 mm cube; OCCT's volume of the ribbed band half
+# (26 cm3, lofted rib flanks) is off by about 0.003 mm3.
+VOID_TOL = 0.05
 TOUCH_EPS = 1e-3  # mm: solids closer than this touch
 RADIUS_TOL = 1e-3  # mm: a circle or cylinder matches a radius within this
 COAXIAL_TOL = 0.01  # mm: two axes closer than this count as coaxial
@@ -43,6 +48,7 @@ HEX_WINDOW = 0.5  # mm: a flat further than this from af/2 off its hole axis is 
 NEAR_MARGIN = 1.0  # mm: cavity_deviation reports deviations exactly up to this
 
 Vec3 = tuple[float, float, float]
+Mouth = tuple[Vec3, Vec3]  # a plane (point, normal) a cavity is designed to open on
 
 
 # --- Check results -------------------------------------------------------------------------------
@@ -174,6 +180,46 @@ def captive_nut(
         af, nut_h, origin=top + d * nut_depth, axis=d, slot_dir=slot_dir, slot_len=slot_len
     )
     return [hole, pocket]
+
+
+def flared_mouth(
+    center: Iterable[float],
+    outward: Iterable[float],
+    u_dir: Iterable[float],
+    u_span: tuple[float, float],
+    v_span: tuple[float, float],
+    flare: float,
+    sides: tuple[bool, bool, bool, bool] = (True, True, True, True),
+) -> Part:
+    """Cutter that chamfers a rectangular slot mouth at 45 degrees (`flare` x 45 degrees).
+
+    The mouth lies in a face with outward normal `outward`, around the point `center` on
+    it: `u_span` along `u_dir`, `v_span` along v = outward x u_dir (offsets from `center`).
+    `sides` (u-, u+, v-, v+) says which sides get the chamfer; the others stay straight.
+    The cutter reaches 1 mm out of the face, so it leaves no skin on it.
+    """
+    if flare <= 0:
+        raise ValueError("flared_mouth: flare must be > 0")
+    plane = plane_at(center, -Vector(*outward), u_dir)  # local z runs into the part
+    grow = [flare if side else 0.0 for side in sides]
+    # Local y = z x x = -v, so the v span flips sign.
+    mouth = (u_span[0], u_span[1], -v_span[1], -v_span[0])
+    wide = (mouth[0] - grow[0], mouth[1] + grow[1], mouth[2] - grow[3], mouth[3] + grow[2])
+
+    def rect(x0, x1, y0, y1, z):
+        return Pos(0, 0, z) * Polygon((x0, y0), (x1, y0), (x1, y1), (x0, y1), align=None)
+
+    cutter = loft([rect(*wide, -1.0), rect(*wide, 0.0), rect(*mouth, flare)], ruled=True)
+    return plane.location * cutter
+
+
+class CutterGroup(NamedTuple):
+    """The cutters of one bolt (hole, nut pocket, ...) and the planes of the outer faces they
+    are designed to open on (see wall_around): any other breakout is a failed wall."""
+
+    label: str
+    cutters: list[Part]
+    mouths: list[Mouth]
 
 
 def cavity_pieces(envelope: Shape, cutters: Iterable[Shape]) -> list[Part]:
@@ -379,11 +425,19 @@ def near_faces(shape: Shape, other: Shape, within: float) -> Compound | None:
     return Compound(faces) if faces else None
 
 
+def _in_plane(face: Face, mouth: Mouth, tol: float) -> bool:
+    """`face` is planar and lies in the plane `mouth`."""
+    origin, normal = Vector(*mouth[0]), Vector(*mouth[1]).normalized()
+    points = [v.center() for v in face.vertices()] + [e.position_at(0.5) for e in face.edges()]
+    return face.is_planar and all(abs((pt - origin).dot(normal)) <= tol for pt in points)
+
+
 def wall_around(
     part: Shape,
     voids: Shape | Iterable[Shape],
-    touch: float = TOUCH_EPS,
+    mouths: Iterable[Mouth] = (),
     open_to: Shape | None = None,
+    touch: float = TOUCH_EPS,
 ) -> float:
     """Thinnest wall between one cavity and the rest of the part's surface (solid distance).
 
@@ -392,12 +446,20 @@ def wall_around(
     skipped. Each piece is then measured against every other face it does not touch, so
     a hole that opens into the bed face still counts the nut pocket's wall to that face.
 
+    `mouths` are the planes of the outer faces the cavity is designed to open on (a hole's
+    entry face, a nut slot's side face), as (point, normal). Any other face that touches the
+    cavity is a breakthrough: the wall there is gone, and the result is 0. Without this, a
+    hole breaking out of a face would read as the distance to the next face instead.
+
     `open_to` is a designed space the cavity opens into over a large mouth (a head recess
     opening into the band's inside). Faces lying on its boundary are skipped too: next to
     the mouth they meet the cavity at an edge, and their distance is air, not a wall.
     """
     pieces = [voids] if isinstance(voids, Shape) else list(voids)
+    mouths = list(mouths)
     cavity = Compound(pieces)
+    # A face of the opened-into space may end on the cavity's rim: it lies on both together.
+    opening = Compound([*pieces, open_to]) if open_to is not None else None
     box = cavity.bounding_box()
     # Nearest faces first; stop once even the box bound is no closer than the best wall.
     faces = sorted((_box_gap(f.bounding_box(), box), i, f) for i, f in enumerate(part.faces()))
@@ -405,13 +467,40 @@ def wall_around(
     for bound, _, face in faces:
         if bound >= best:
             break
-        if cavity.distance_to(face) <= touch and _lies_on(face, cavity, touch):
+        touches = cavity.distance_to(face) <= touch
+        if touches and _lies_on(face, cavity, touch):
             continue  # a face of the cavity itself
-        if open_to is not None and _lies_on(face, open_to, touch):
+        if opening is not None and _lies_on(face, opening, touch):
             continue  # a face of the space the cavity opens into
+        if touches and not any(_in_plane(face, m, touch) for m in mouths):
+            return 0.0  # the cavity breaks out of a face it is not meant to open on
         gaps = (piece.distance_to(face) for piece in pieces)
         best = min([best, *(g for g in gaps if g > touch)])
     return best
+
+
+def void_volume_check(
+    name: str, part: Shape, pieces: Iterable[Shape], envelope: Shape, tol: float = VOID_TOL
+) -> Check:
+    """The part holds no void (or extra material) beyond the designed one: its volume is the
+    envelope's minus the designed pieces' (cavity_pieces, disjoint, so their volumes add up).
+    cavity_check only looks at the designed walls; a stray hole elsewhere shows up here."""
+    expected = envelope.volume - sum(piece.volume for piece in pieces)
+    off = part.volume - expected
+    return Check(name, abs(off) <= tol, f"volume off design by {off:+.4f} mm3 (max {tol:g})")
+
+
+def opening_width(part: Shape, center: Iterable[float], direction: Iterable[float]) -> float:
+    """Width of the opening (air) around `center` along `direction`, measured on the solid
+    with a probe line: from the material before `center` to the material after it."""
+    reach = 100.0
+    o, d = Vector(*center), Vector(*direction).normalized()
+    spans = material_spans(part, o - d * reach, d, 2 * reach)
+    before = [end for start, end in spans if end <= reach]
+    after = [start for start, end in spans if start >= reach]
+    if any(start < reach < end for start, end in spans):
+        return 0.0  # `center` is in material
+    return min(after, default=math.inf) - max(before, default=-math.inf)
 
 
 def face_samples(face: Face, n: int = 5) -> list[Vector]:

@@ -82,8 +82,10 @@ class Params:
 
     # Fasteners (pocket and hole sizes already include the print fit).
     m3_through: float = 3.4
-    m3_head_d: float = 6.6  # head recess diameter
-    m3_head_h: float = 2.0  # head recess depth = the head height it is sized for (>= ISO 7380)
+    # Boss head recess: takes the head on a DIN 125 washer (7.0) so the head does not bear
+    # on the TPU with its own small annulus. Recess depth = m3_head_h + m3_washer_t + extra.
+    m3_head_d: float = 7.6  # estimated: washer 7.0 + 0.3 per side (TPU fit 0.25 + 0.05)
+    m3_head_h: float = 2.0  # head height the recess is sized for (>= ISO 7380 1.65)
     m3_head_extra: float = 1.0  # extra depth so the heads sit below the band face
     m3_hex_af: float = 5.7  # nut pocket across flats
     m3_hex_h: float = 2.6  # nut pocket depth
@@ -92,18 +94,28 @@ class Params:
     quarter_through: float = 6.6  # 1/4" = 6.35 plus clearance
 
     # Hardware (user decision after Task 4): 8 x M3x16 ISO 7380 button head, 4 at the seams
-    # (+ washer + nut), 4 boss to block (+ nut). Standard part sizes.
+    # (+ washer + nut), 4 boss to block (+ washer + nut: the washer spreads the head load on
+    # the TPU, fix pass after Task 4). Standard part sizes.
     m3_bolt_head_d: float = 5.7  # ISO 7380 M3 button head
     m3_bolt_head_h: float = 1.65
     seam_bolt_len: float = 16.0  # M3x16, length under the head
     m3_washer_d: float = 7.0  # DIN 125-A M3 washer
     m3_washer_t: float = 0.5
     m3_nut_h: float = 2.4  # ISO 4032 M3 nut
+    m3_nut_af: float = 5.5  # ISO 4032 M3 nut, across flats
+    quarter_nut_af: float = 11.1  # 1/4"-20 hex nut, 7/16" across flats
+    quarter_nut_h: float = 5.6  # 1/4"-20 hex nut, 7/32" thick
     boss_bolt_len: float = 16.0  # M3x16, length under the head
+
+    # PETG block printed on its -X side: the nut slots at x < 0 open on the bed face, where
+    # the first layers squish into the slot mouth (elephant's foot). Those mouths get a
+    # 45 degree chamfer on every side except the nut's seat side.
+    elephant_foot: float = 0.3  # estimated: PETG first-layer squish, typically 0.1-0.3 mm
+    bed_slot_flare: float = 0.6  # chamfer size: mouth >= nut + 2 x elephant_foot
 
     @property
     def m3_head_recess_depth(self) -> float:
-        return self.m3_head_h + self.m3_head_extra
+        return self.m3_head_h + self.m3_washer_t + self.m3_head_extra
 
     def walls(self) -> list[tuple[str, float, str]]:
         """Walls that follow from the parameters alone: (name, thickness, material).
@@ -118,8 +130,15 @@ class Params:
         walls = [
             ("band_wall", self.band_wall, TPU),
             ("ear behind the M3 nut pocket", self.ear_t - self.m3_hex_h, TPU),
+            ("ear tip to seam hole", self.ear_len / 2 - self.m3_through / 2, TPU),
+            ("ear tip to seam nut pocket", self.ear_len / 2 - m3_corner, TPU),
             ("boss edge to M3 head recess", pattern_margin - self.m3_head_d / 2, TPU),
             ("block edge to M3 nut pocket", block_margin - m3_corner, PETG),
+            (
+                "block edge to bed-side M3 slot chamfer",
+                block_margin - self.m3_hex_af / 2 - self.bed_slot_flare,
+                PETG,
+            ),
             ("block edge to 1/4 nut pocket", self.block_size / 2 - quarter_corner, PETG),
             ("boss face to plate nut pocket", self.plate_nut_wall, PETG),
             ("top face to 1/4 nut pocket", self.top_quarter_nut_depth, PETG),
@@ -162,8 +181,15 @@ class Params:
                 raise ValueError(f"{name}: {thickness:.3f} mm < {material} wall_min {wall_min} mm")
         if self.rib_tip + 2 * self.rib_h > self.rib_pitch:
             raise ValueError("rib_pitch: neighbouring grip ribs overlap at the band face")
-        if self.m3_bolt_head_d >= self.m3_head_d or self.m3_bolt_head_h > self.m3_head_h:
-            raise ValueError("m3_bolt_head_h / m3_bolt_head_d: the head does not fit its recess")
+        if (
+            self.m3_bolt_head_d >= self.m3_head_d
+            or self.m3_washer_d >= self.m3_head_d
+            or self.m3_bolt_head_h > self.m3_head_h
+        ):
+            raise ValueError(
+                "m3_head_d / m3_bolt_head_h / m3_bolt_head_d / m3_washer_d: "
+                "the head and its washer do not fit the recess"
+            )
         if self.boss_w > self.band_h:
             raise ValueError("boss_w: the boss is taller than the band")
         return self

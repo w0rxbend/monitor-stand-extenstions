@@ -32,6 +32,7 @@ from holder.common import (
     hex_pocket_checks,
     hole_axes,
     single_solid,
+    void_volume_check,
     wall_around,
 )
 from holder.params import MATERIALS, PETG, Params
@@ -121,6 +122,13 @@ def build_strip(p: Params) -> Part:
     return cut(strip_envelope(), [c for cs in strip_cutters(p).values() for c in cs])
 
 
+STRIP_MOUTHS = [  # the faces the holes and slots open on: top, bottom (through) and +Y
+    ((0, 0, STRIP_H), (0, 0, 1)),
+    ((0, 0, 0), (0, 0, 1)),
+    ((0, STRIP_Y_BACK, 0), (0, 1, 0)),
+]
+
+
 def checks_strip(part: Part, p: Params) -> list[Check]:
     wall_min = MATERIALS[PETG].wall_min
     env = strip_envelope()
@@ -137,10 +145,10 @@ def checks_strip(part: Part, p: Params) -> list[Check]:
         ]
     all_voids = [piece for pieces in voids.values() for piece in pieces]
     checks.append(cavity_check("holes and nut pockets as designed", part, all_voids, env))
+    checks.append(void_volume_check("no void beyond the designed ones", part, all_voids, env))
     for label, pieces in voids.items():
-        checks.append(
-            at_least(f"wall around {label} hole + nut", wall_around(part, pieces), wall_min)
-        )
+        wall = wall_around(part, pieces, mouths=STRIP_MOUTHS)
+        checks.append(at_least(f"wall around {label} hole + nut", wall, wall_min))
     return checks
 
 

@@ -39,28 +39,39 @@ Print: on its -X side (PRINT = (-1, 0, 0)), PLAN.md "Print". Why this side:
 - Assembly +X is up on the bed. The 1/4" slot (the widest pocket) opens on the +X face, as do
   the slots of every nut at x > 0: each is an open channel from the top, no roof at all.
   The nuts at x < 0 slot out of the -X face, the bed: their channel opens onto the bed and
-  the closed end is a hex corner pointing up (a 60 degree peak over a 2.85 mm half-span,
-  self-supporting like the seam nut pockets of the band). Every slot is 7 mm long (6 mm to
-  the face + 1 mm overshoot); no slot crosses another pocket.
+  the closed end is a hex corner pointing up. Its roof is two faces 30 degrees from
+  horizontal (120 degree apex), each spanning 2.85 mm across: a shallow overhang, past the
+  usual 45 degree rule, that may sag a little. Two flats must run along the slot so the nut
+  slides in, which fixes that corner. A sag of up to about 0.2 mm only moves the nut that
+  far off the hole axis, which the 3.4 mm hole around the 3.0 mm bolt takes up. The coupon
+  strip prints its slots facing up and does not test this roof; if it sags more, trim it.
+  Their mouths on the bed face get a bed_slot_flare x 45 degree chamfer (not on the seat
+  side, toward the bolt's entry face), so elephant's foot does not close a mouth that is
+  only 0.2 mm wider than the nut (bed_mouth_checks). Every slot is 7 mm long (6 mm to the
+  face + 1 mm overshoot); no slot crosses another pocket.
 - All holes (plate holes along Y, top holes along Z) lie horizontal on the bed. They print
   about 0.15 mm small; the 3.4 / 6.6 through sizes cover that (PLAN.md).
 
-Hardware (user decision after Task 4): 4 x M3x16 ISO 7380 + nut, boss to block. The stack
-is measured on the solids (boss_hardware_checks): head on the recess floor in the band,
-through the TPU boss to its face, through the PETG wall to the nut seat, and the bolt must
-reach through the whole nut. The top face takes 4 x M3 nut + 1 x 1/4"-20 nut; a short
+Hardware (user decision after Task 4): 4 x M3x16 ISO 7380 + DIN 125 washer + nut, boss to
+block (the washer spreads the head load on the TPU). The stack is measured on the solids
+(boss_hardware_checks): head on its washer on the recess floor in the band, through the
+TPU boss to its face, through the PETG wall to the nut seat, and the bolt must reach
+through the whole nut. The top face takes 4 x M3 nut + 1 x 1/4"-20 nut; a short
 1/4"-20 screw must engage its nut (quarter_screw_check).
 """
 
+from dataclasses import dataclass
 from functools import cache
 
-from build123d import Align, Axis, Box, Compound, Part, Pos, fillet
+from build123d import Align, Axis, Box, Compound, Part, Pos, Vector, fillet
 
 from holder import band
 from holder.common import (
     TOUCH_EPS,
     Check,
+    CutterGroup,
     PartSpec,
+    Vec3,
     at_least,
     captive_nut,
     cavity_check,
@@ -70,11 +81,14 @@ from holder.common import (
     coaxial_check,
     count_is,
     cut,
+    flared_mouth,
     hex_pocket_checks,
     hole_axes,
     material_spans,
     min_distance,
+    opening_width,
     single_solid,
+    void_volume_check,
     wall_around,
 )
 from holder.params import MATERIALS, PETG, Params
@@ -139,13 +153,6 @@ def envelope(p: Params) -> Part:
 # --- Bolts and cutters ---------------------------------------------------------------------------
 
 
-def slot(p: Params, x: float) -> tuple[tuple[float, float, float], float]:
-    """(slot_dir, slot_len) for a nut at `x`: to the nearer X face, 1 mm past it.
-    A nut on the axis (the 1/4") slots out of +X, the side that is up when printed."""
-    side = 1.0 if x >= 0 else -1.0
-    return (side, 0.0, 0.0), p.block_size / 2 - abs(x) + 1
-
-
 def plate_bolts(p: Params) -> list[tuple[float, float]]:
     """(x, z) of the plate bolts: the boss bolts, so the axes are coaxial by design."""
     return band.boss_bolts(p)
@@ -166,58 +173,146 @@ def top_axis(x: float, y: float, p: Params) -> Axis:
     return Axis((x, y, top_z(p)), TOP_AXIS)
 
 
-def plate_cutters(p: Params, x: float, z: float) -> list[Part]:
-    """[blind M3 hole, nut pocket] for one plate bolt."""
-    slot_dir, slot_len = slot(p, x)
-    depth = p.plate_nut_wall + p.m3_hex_h + p.plate_hole_extra
-    return captive_nut(
-        (x, front_y(p), z),
-        PLATE_AXIS,
-        p.m3_through,
-        depth - 1,  # captive_nut overshoots 1 mm at both ends: the hole ends `depth` deep
-        p.m3_hex_af,
-        p.m3_hex_h,
-        p.plate_nut_wall,
-        slot_dir,
-        slot_len,
+@dataclass(frozen=True)
+class Nut:
+    """One bolt into a captive nut: it enters the face at `face` along `into`; the nut sits
+    `depth` below that face, the blind hole ends `hole_depth` below it."""
+
+    label: str
+    face: Vec3
+    into: Vec3
+    hole_d: float
+    hole_depth: float
+    af: float  # pocket across flats
+    pocket_h: float  # pocket depth along the bolt
+    depth: float
+    nut_af: float  # the nut itself (for the bed mouth check)
+    nut_h: float
+
+    @property
+    def slot_dir(self) -> Vec3:
+        """The slot runs to the nearer X face; a nut on the axis (the 1/4") slots out of +X,
+        the side that is up when printed."""
+        return (1.0 if self.face[0] >= 0 else -1.0, 0.0, 0.0)
+
+    @property
+    def on_bed(self) -> bool:
+        """The slot opens on the bed face (it runs out of the PRINT side)."""
+        return sum(a * b for a, b in zip(self.slot_dir, PRINT, strict=True)) > 0.5
+
+
+def m3_nut(p: Params, label: str, face: Vec3, into: Vec3, depth: float, extra: float) -> Nut:
+    """An M3 bolt into a nut `depth` below the face, the blind hole `extra` past the pocket."""
+    return Nut(
+        label,
+        face,
+        into,
+        hole_d=p.m3_through,
+        hole_depth=depth + p.m3_hex_h + extra,
+        af=p.m3_hex_af,
+        pocket_h=p.m3_hex_h,
+        depth=depth,
+        nut_af=p.m3_nut_af,
+        nut_h=p.m3_nut_h,
     )
 
 
-def top_cutters(p: Params, x: float, y: float, quarter: bool) -> list[Part]:
-    """[blind hole, nut pocket] for one top-face bolt (M3, or the 1/4"-20 if `quarter`)."""
-    if quarter:
-        hole, af, nut_h, nut_depth = (
-            p.quarter_through,
-            p.quarter_hex_af,
-            p.quarter_hex_h,
-            p.top_quarter_nut_depth,
+def nuts(p: Params) -> list[Nut]:
+    """Every bolt of the block: 4 plate M3, 4 top M3, the top 1/4"-20."""
+    zt = top_z(p)
+    _, yc, _ = top_center(p)
+    result = [
+        m3_nut(
+            p,
+            f"plate M3 x={x:g} z={z:g}",
+            (x, front_y(p), z),
+            PLATE_AXIS,
+            p.plate_nut_wall,
+            p.plate_hole_extra,
         )
-        extra = p.top_quarter_hole_extra
-    else:
-        hole, af, nut_h, nut_depth = p.m3_through, p.m3_hex_af, p.m3_hex_h, p.top_m3_nut_depth
-        extra = p.top_m3_hole_extra
-    slot_dir, slot_len = slot(p, x)
-    depth = nut_depth + nut_h + extra
-    return captive_nut(
-        (x, y, top_z(p)), TOP_AXIS, hole, depth - 1, af, nut_h, nut_depth, slot_dir, slot_len
-    )
-
-
-def cutter_groups(p: Params) -> list[tuple[str, list[Part]]]:
-    """[(label, [hole, nut pocket])] for every bolt: plate M3, top M3, top 1/4"."""
-    groups = [(f"plate M3 x={x:g} z={z:g}", plate_cutters(p, x, z)) for x, z in plate_bolts(p)]
-    groups += [
-        (f"top M3 x={x:g} y={y:g}", top_cutters(p, x, y, quarter=False))
+        for x, z in plate_bolts(p)
+    ]
+    result += [
+        m3_nut(
+            p,
+            f"top M3 x={x:g} y={y:g}",
+            (x, y, zt),
+            TOP_AXIS,
+            p.top_m3_nut_depth,
+            p.top_m3_hole_extra,
+        )
         for x, y in top_m3_points(p)
     ]
-    _, yc, _ = top_center(p)
-    groups.append(("top 1/4", top_cutters(p, 0.0, yc, quarter=True)))
-    return groups
+    result.append(
+        Nut(
+            "top 1/4",
+            (0.0, yc, zt),
+            TOP_AXIS,
+            hole_d=p.quarter_through,
+            hole_depth=p.top_quarter_nut_depth + p.quarter_hex_h + p.top_quarter_hole_extra,
+            af=p.quarter_hex_af,
+            pocket_h=p.quarter_hex_h,
+            depth=p.top_quarter_nut_depth,
+            nut_af=p.quarter_nut_af,
+            nut_h=p.quarter_nut_h,
+        )
+    )
+    return result
+
+
+def side_face_x(p: Params, nut: Nut) -> float:
+    """x of the face the nut's slot opens on."""
+    return nut.slot_dir[0] * p.block_size / 2
+
+
+def nut_group(p: Params, nut: Nut) -> CutterGroup:
+    """[blind hole, nut pocket] (+ [mouth chamfer] if the slot opens on the bed) for one bolt.
+
+    The slot runs from the hex center 1 mm past the side face. On the bed face its mouth
+    gets a bed_slot_flare x 45 degree chamfer against elephant's foot, on every side except
+    the nut's seat side (toward the entry face, where the bolt pulls the nut): that side
+    keeps the wall in front of the nut whole.
+    """
+    x_face = side_face_x(p, nut)
+    slot_len = abs(x_face - nut.face[0]) + 1
+    cutters = captive_nut(
+        nut.face,
+        nut.into,
+        nut.hole_d,
+        nut.hole_depth - 1,  # captive_nut overshoots 1 mm at both ends
+        nut.af,
+        nut.pocket_h,
+        nut.depth,
+        nut.slot_dir,
+        slot_len,
+    )
+    if nut.on_bed:
+        # Before the pocket: cavity_pieces then keeps the slot whole up to the face, and the
+        # chamfer piece is only the flare around it.
+        cutters.insert(
+            1,
+            flared_mouth(
+                (x_face, nut.face[1], nut.face[2]),
+                nut.slot_dir,
+                nut.into,
+                (nut.depth, nut.depth + nut.pocket_h),
+                (-nut.af / 2, nut.af / 2),
+                p.bed_slot_flare,
+                sides=(False, True, True, True),
+            ),
+        )
+    mouths = [(nut.face, nut.into), ((x_face, 0.0, 0.0), (1.0, 0.0, 0.0))]
+    return CutterGroup(nut.label, cutters, mouths)
+
+
+def cutter_groups(p: Params) -> list[CutterGroup]:
+    """One group per bolt (nuts order): plate M3, top M3, top 1/4"."""
+    return [nut_group(p, nut) for nut in nuts(p)]
 
 
 def build(p: Params) -> Part:
     """The block in assembly coordinates."""
-    return cut(envelope(p), [c for _, cs in cutter_groups(p) for c in cs])
+    return cut(envelope(p), [c for g in cutter_groups(p) for c in g.cutters])
 
 
 # --- Checks --------------------------------------------------------------------------------------
@@ -240,13 +335,14 @@ def boss_holes(back: Part, p: Params) -> list[Axis]:
 
 
 def boss_hardware_checks(part: Part, back: Part, p: Params) -> list[Check]:
-    """Hardware for each boss bolt: M3 x boss_bolt_len + nut, head in the band's recess.
+    """Hardware for each boss bolt: M3 x boss_bolt_len + washer + nut, the head on its washer
+    in the band's recess.
 
     Measured along a probe line parallel to the bolt, between the hole (r 1.7) and the nut
-    pocket flats (2.85): in band_back the material from the head recess floor to the boss
-    face, in the block the wall from its face to the nut seat. The bolt must reach through
-    the whole nut (tip at least flush with the nut's far face), and the blind hole must be
-    deep enough for the tip.
+    pocket flats (2.85): in band_back the material from the head recess floor (the washer
+    seat) to the boss face, in the block the wall from its face to the nut seat. The bolt
+    must reach through the washer and the whole nut (tip at least flush with the nut's far
+    face), and the blind hole must be deep enough for the tip.
     """
     probe = (p.m3_through / 2 + p.m3_hex_af / 2) / 2
     y0, reach = front_y(p), 2 * (front_y(p) + p.block_size)
@@ -263,15 +359,17 @@ def boss_hardware_checks(part: Part, back: Part, p: Params) -> list[Check]:
         boss_face = band_spans[-1][1]
         seat = y0 - 1 + block_spans[0][1]  # end of the wall in front of the nut
         hole_end = y0 - 1 + hole_spans[0][0]  # bottom of the blind hole
-        tip = head_floor + p.boss_bolt_len
-        need = seat + p.m3_nut_h - head_floor
+        head_seat = head_floor - p.m3_washer_t  # the head bears on the washer
+        tip = head_seat + p.boss_bolt_len
+        need = seat + p.m3_nut_h - head_seat
         spare = tip - (seat + p.m3_nut_h)
         checks.append(
             Check(
                 f"{name}: M3x{p.boss_bolt_len:g} reaches through the plate nut",
                 spare >= 0 and abs(boss_face - y0) <= TOUCH_EPS,
-                f"needs {need:.2f} mm (TPU boss {boss_face - head_floor:.2f} + PETG wall "
-                f"{seat - boss_face:.2f} + nut {p.m3_nut_h:g}), "
+                f"needs {need:.2f} mm (washer {p.m3_washer_t:g} + TPU boss "
+                f"{boss_face - head_floor:.2f} + PETG wall {seat - boss_face:.2f} + nut "
+                f"{p.m3_nut_h:g}), "
                 + (f"{spare:.2f} mm past the nut" if spare >= 0 else f"{-spare:.2f} mm short"),
             )
         )
@@ -320,11 +418,38 @@ def clash_with_band(part: Part, p: Params) -> list[Check]:
     return checks
 
 
+def bed_mouth_checks(part: Part, p: Params) -> list[Check]:
+    """Each nut slot that opens on the bed face is wide enough there for the nut to pass the
+    first layers' squish (elephant_foot per side), in both directions: along the bolt (nut
+    thickness) and across it (nut across-flats). Measured with probe lines on the solid,
+    0.01 mm inside the bed face, through the middle of the mouth."""
+    checks = []
+    for nut in nuts(p):
+        if not nut.on_bed:
+            continue
+        x = side_face_x(p, nut) - nut.slot_dir[0] * 0.01
+        into = Vector(*nut.into)
+        mid = Vector(x, *nut.face[1:]) + into * (nut.depth + nut.pocket_h / 2)
+        across = into.cross(Vector(*nut.slot_dir))  # in the bed plane, normal to the bolt
+        along_w = opening_width(part, mid, into)
+        across_w = opening_width(part, mid, across)
+        need_h = nut.nut_h + 2 * p.elephant_foot
+        need_af = nut.nut_af + 2 * p.elephant_foot
+        checks.append(
+            Check(
+                f"{nut.label}: slot mouth on the bed clears the nut past elephant's foot",
+                along_w >= need_h and across_w >= need_af,
+                f"{along_w:.2f} x {across_w:.2f} mm (min {need_h:g} x {need_af:g})",
+            )
+        )
+    return checks
+
+
 def checks(part: Part, p: Params) -> list[Check]:
     wall_min = MATERIALS[MATERIAL].wall_min
     env = envelope(p)
     groups = cutter_groups(p)
-    voids = [(label, cavity_pieces(env, cutters)) for label, cutters in groups]
+    voids = [(g, cavity_pieces(env, g.cutters)) for g in groups]
     back = band_parts(p)[band.BACK_NAME]
 
     plate = hole_axes(part, p.m3_through, direction=PLATE_AXIS)
@@ -362,9 +487,12 @@ def checks(part: Part, p: Params) -> list[Check]:
     ]
     all_pieces = [piece for _, pieces in voids for piece in pieces]
     result.append(cavity_check("holes and nut pockets as designed", part, all_pieces, env))
-    for label, pieces in voids:
-        result.append(at_least(f"wall around {label}", wall_around(part, pieces), wall_min))
-    result.append(pocket_gap_check(voids, wall_min))
+    result.append(void_volume_check("no void beyond the designed ones", part, all_pieces, env))
+    for g, pieces in voids:
+        wall = wall_around(part, pieces, mouths=g.mouths)
+        result.append(at_least(f"wall around {g.label}", wall, wall_min))
+    result.append(pocket_gap_check([(g.label, pieces) for g, pieces in voids], wall_min))
+    result += bed_mouth_checks(part, p)
     result.append(quarter_screw_check(part, p))
     result += boss_hardware_checks(part, back, p)
     result += clash_with_band(part, p)

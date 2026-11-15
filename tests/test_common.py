@@ -15,14 +15,17 @@ from holder.common import (
     coaxial_check,
     contact_faces,
     cut,
+    flared_mouth,
     hex_flat_widths,
     hex_pocket,
     hex_pocket_checks,
     hole_axes,
     intersection_volume,
     material_spans,
+    opening_width,
     planar_faces,
     rod,
+    void_volume_check,
     wall_around,
 )
 from holder.export import (
@@ -91,10 +94,51 @@ def test_hole_axes_and_coaxial_check():
     assert not coaxial_check("none", [], []).ok
 
 
+ENDS_Z = [((0, 0, 5), (0, 0, 1)), ((0, 0, -5), (0, 0, 1))]  # top and bottom of Box(10, 10, 10)
+
+
 def test_wall_around_measures_the_nearest_face():
     box = Box(10, 10, 10)
     void = rod(2, 12, origin=(2, 0, -6)) & box
-    assert wall_around(box - void, void) == pytest.approx(2.0)  # to x = 5: 5 - 2 - 1
+    assert wall_around(box - void, void, mouths=ENDS_Z) == pytest.approx(2.0)  # 5 - 2 - 1
+    # The hole opens on top and bottom: undeclared, those are breakthroughs.
+    assert wall_around(box - void, void) == 0.0
+
+
+@pytest.mark.parametrize("x, wall", [(3.0, 1.0), (3.9, 0.1), (4.5, 0.0), (5.0, 0.0)])
+def test_wall_around_reports_a_breakout_as_zero(x, wall):
+    # A hole r=1 at x moving toward the x = 5 face; past 4 it breaks out of that face.
+    box = Box(10, 10, 10)
+    void = rod(2, 12, origin=(x, 0, -6)) & box
+    assert wall_around(box - void, void, mouths=ENDS_Z) == pytest.approx(wall, abs=1e-6)
+
+
+def test_void_volume_check_catches_a_stray_hole():
+    envelope = Box(10, 10, 10)
+    hole = rod(2, 12, origin=(0, 0, -6))
+    pieces = cavity_pieces(envelope, [hole])
+    part = cut(envelope, [hole])
+    assert void_volume_check("v", part, pieces, envelope).ok
+    stray = part - rod(1, 12, origin=(3, 0, -6), axis=(0, 0, 1))
+    assert not void_volume_check("v", stray, pieces, envelope).ok
+    assert not void_volume_check("v", envelope, pieces, envelope).ok  # hole plugged
+
+
+def test_flared_mouth_chamfers_the_chosen_sides():
+    # Slot mouth 2 (u, along Z) x 4 (v) on the x = 5 face of a box; chamfer 0.5 on all but u-.
+    box = Box(10, 10, 10)
+    slot = Pos(3, 0, 0.5) * Box(6, 4, 2)  # x 0..6, y -2..2, z -0.5..1.5
+    sides = (False, True, True, True)
+    flare = flared_mouth((5, 0, 0), (1, 0, 0), (0, 0, 1), (-0.5, 1.5), (-2, 2), 0.5, sides)
+    part = box - slot - flare
+    # At the face: 2 + 0.5 along u (one side), 4 + 2 x 0.5 along v; 0.5 in, the plain slot.
+    assert opening_width(part, (4.99, 0, 0.5), (0, 0, 1)) == pytest.approx(2.49, abs=1e-6)
+    assert opening_width(part, (4.99, 0, 0.5), (0, 1, 0)) == pytest.approx(4.98, abs=1e-6)
+    assert opening_width(part, (4.4, 0, 0.5), (0, 0, 1)) == pytest.approx(2.0, abs=1e-6)
+    assert opening_width(part, (4.4, 0, 0.5), (0, 1, 0)) == pytest.approx(4.0, abs=1e-6)
+    # The u- side stays straight: the slot wall at z = -0.5 reaches the face.
+    assert opening_width(part, (4.99, 0, -0.6), (0, 0, 1)) == 0.0
+    assert intersection_volume(flare, Pos(10, 0, 0) * Box(10, 10, 10)) > 0  # overshoot
 
 
 def nut_block(hole_dx=0.0, af=AF):
@@ -114,7 +158,7 @@ def test_wall_around_skips_the_space_it_opens_into():
     recess = Pos(0, 0, 8) * Box(20, 20, 2, align=BOTTOM) - ridge
     bore = rod(6, 6, origin=(0, 0, 5)) & box
     part = box - recess - bore
-    assert wall_around(part, bore) == pytest.approx(0.5)  # ridge side, measured through air
+    assert wall_around(part, bore) == 0.0  # it opens into the recess: undeclared, a breakout
     assert wall_around(part, bore, open_to=recess) == pytest.approx(5.0)  # to the bed face
 
 
@@ -133,8 +177,11 @@ def test_contact_faces_need_an_area_contact():
 
 def test_wall_around_a_connected_cavity():
     part, _, voids = nut_block()
-    # The hole opens into the bed face; the nut pocket floor still counts: 3.5 to Z=0.
-    assert wall_around(part, voids) == pytest.approx(3.5)
+    # The hole opens on top and bed, the slot on +X; the nut pocket floor still counts: 3.5
+    # to Z=0.
+    mouths = [((0, 0, 10), (0, 0, 1)), ((0, 0, 0), (0, 0, 1)), ((15, 0, 0), (1, 0, 0))]
+    assert wall_around(part, voids, mouths=mouths) == pytest.approx(3.5)
+    assert wall_around(part, voids, mouths=mouths[:2]) == 0.0  # the slot mouth undeclared
 
 
 def test_cavity_check_catches_shifted_plugged_and_oversize():
