@@ -24,6 +24,22 @@ PRINT = {"band_front": (0, 0, -1), "band_back": (0, 0, -1)}
 RIB_PITCH = 5.0
 RIB_T = 1.0
 RIB_BITE = 0.2
+# Radial rib section. This is the 1.0 that used to be offset(inner, -1.0).
+RIB_SECTION = 1.0
+
+
+def _fit() -> float:
+    return float(MATERIALS[MATERIAL]["fit"])
+
+
+def _inner_face() -> float:
+    """Rib tips plus one rib section. Not the fit, and not the RIB_BITE fuse."""
+    return _fit() + RIB_SECTION
+
+
+def _shell(spec: Params) -> float:
+    """Outer face. Wall thickness stays band_wall, outside the inner face."""
+    return _inner_face() + spec.band_wall
 
 
 def column_profile(spec: Params):
@@ -52,14 +68,14 @@ def seam_hole(spec: Params, x: float, z: float, y0: float, y1: float) -> Part:
 
 
 def _gap_cutter(spec: Params, height: float, side: float) -> Part:
-    outer = side * (spec.column_w / 2 + spec.band_wall + 1)
+    outer = side * (spec.column_w / 2 + _shell(spec) + 1)
     inner = side * (spec.column_w / 2 - 1)
     return box_from(outer, -spec.seam_gap / 2, -1, inner, spec.seam_gap / 2, height + 1)
 
 
 def _ear(spec: Params, height: float, side: float, y_sign: float) -> Part:
     tip = side * (spec.column_w / 2 + spec.band_wall + spec.ear_len)
-    root = side * (spec.column_w / 2)
+    root = side * (spec.column_w / 2 + _fit())
     y_gap = y_sign * spec.seam_gap / 2
     y_out = y_sign * (spec.seam_gap / 2 + spec.ear_t)
     return round_box(tip, y_gap, 0, root, y_out, height, 4, along="y")
@@ -76,8 +92,8 @@ def clamp_halves(
     bolt_zs: tuple[float, ...],
 ) -> tuple[Part, Part]:
     """Front (-Y) and back (+Y) halves, seam gap on the left and right, one ear per seam."""
-    inner = column_profile(spec)
-    ring = extrude(offset(inner, amount=spec.band_wall) - inner, amount=height)
+    column = column_profile(spec)
+    ring = extrude(offset(column, _shell(spec)) - offset(column, _inner_face()), amount=height)
     opened = ring - _gap_cutter(spec, height, -1) - _gap_cutter(spec, height, 1)
     front_solid, back_solid = sorted(opened.solids(), key=lambda solid: solid.center().Y)
     front = _as_part(front_solid)
@@ -103,7 +119,7 @@ def boss_z0(spec: Params) -> float:
 
 def boss_face_y(spec: Params) -> float:
     """Back face of the boss. The block plate sits on this plane."""
-    return spec.column_d / 2 + spec.band_wall + spec.boss_depth
+    return spec.column_d / 2 + _shell(spec) + spec.boss_depth
 
 
 def boss_hole_centers(spec: Params) -> list[tuple[float, float]]:
@@ -120,8 +136,9 @@ def _union(solids) -> Part:
 
 
 def _ribs(spec: Params, height: float) -> Part:
-    inner = column_profile(spec)
-    profile = offset(inner, RIB_BITE) - offset(inner, -1.0)
+    column = column_profile(spec)
+    # Tips on the fit. Inner face is one rib section further out. RIB_BITE only fuses into the wall.
+    profile = offset(column, _inner_face() + RIB_BITE) - offset(column, _fit())
     slabs = []
     z = RIB_PITCH
     while z + RIB_T / 2 <= height:
@@ -154,10 +171,10 @@ def _with_boss(back: Part, spec: Params) -> Part:
         along="y",
     )
     back = back + boss
-    y_inner = spec.column_d / 2
+    y_bore = spec.column_d / 2 + _inner_face()
     for x, z in boss_hole_centers(spec):
-        recess = y_cylinder(x, z, y_inner - 0.4, y_inner + spec.m3_head_h, spec.m3_head_d)
-        hole = y_cylinder(x, z, y_inner - 0.4, boss_face_y(spec) + 0.2, spec.m3_through)
+        recess = y_cylinder(x, z, spec.column_d / 2 - 0.4, y_bore + spec.m3_head_h, spec.m3_head_d)
+        hole = y_cylinder(x, z, spec.column_d / 2 - 0.4, boss_face_y(spec) + 0.2, spec.m3_through)
         back = back - recess - hole
     return back
 
@@ -172,11 +189,11 @@ def build_halves(spec: Params) -> tuple[Part, Part]:
 
 
 def _rib_checks(part: Part, spec: Params) -> list[Check]:
-    bite = intersection_volume(part, column_solid(spec, spec.band_h))
+    overlap = intersection_volume(part, column_solid(spec, spec.band_h))
     inner = extrude(offset(column_profile(spec), -1.05), amount=spec.band_h)
     deep = intersection_volume(part, inner)
     return [
-        ("grip ribs bite the column", bite > 20.0, f"{bite:.1f} mm3"),
+        ("ribs clear the column", overlap <= VOL_EPS, f"{overlap:.3e} mm3"),
         ("ribs are no deeper than 1 mm", deep <= 1e-3, f"{deep:.4f} mm3"),
     ]
 
@@ -249,18 +266,14 @@ def checks_back(part: Part, spec: Params) -> list[Check]:
         found = circles_on_yz_axis(part, spec.m3_through / 2, x, z)
         detail = f"{len(found)} at x={x:.2f} z={z:.2f}"
         results.append(("boss hole circle", len(found) >= 1, detail))
-        probe = y_cylinder(
-            x,
-            z,
-            spec.column_d / 2 + spec.band_wall + 1.0,
-            boss_face_y(spec) - 1.0,
-            spec.m3_through - 0.3,
-        )
+        # Past the curved outer face, so the ring sits in the boss.
+        y0 = spec.column_d / 2 + _shell(spec) + 1.0
+        probe = y_cylinder(x, z, y0, boss_face_y(spec) - 1.0, spec.m3_through - 0.3)
         results.append(void_open(part, probe, "boss hole open"))
         ring = radial_ring_y(
             x,
             z,
-            spec.column_d / 2 + spec.band_wall + 1.0,
+            y0,
             boss_face_y(spec) - 1.0,
             spec.m3_through / 2,
             wall,

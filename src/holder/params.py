@@ -8,6 +8,17 @@ MATERIALS = {
     "PETG": {"wall_min": 1.5, "fit": 0.30},
 }
 
+# ISO metric stock under the head. The stack picks the shortest size that covers it.
+M3_STOCK_MM = (6, 8, 10, 12, 16, 20, 25, 30, 35, 40, 45, 50)
+
+
+def m3_stock(length_mm: float) -> int:
+    """Shortest stock M3 whose length under the head covers `length_mm`."""
+    for size in M3_STOCK_MM:
+        if size >= length_mm:
+            return size
+    raise ValueError(f"no stock M3 covers {length_mm:.2f} mm")
+
 
 @dataclass(frozen=True, slots=True)
 class Params:
@@ -56,3 +67,22 @@ class Params:
         for z in self.ear_bolt_z:
             if not 0 < z < self.band_h:
                 raise ValueError("ear bolt is outside the band height")
+
+    def seam_stack_mm(self) -> float:
+        """Under the head: both ears, the open seam, and the nut."""
+        return 2 * self.ear_t + self.seam_gap + self.m3_hex_h
+
+    def boss_stack_mm(self) -> float:
+        """Under the head: wall past the recess, the boss, and the nut.
+
+        The plate is as deep as the boss. The nut is centered in that plate.
+        """
+        plate_mm = self.boss_depth
+        nut_far = (plate_mm + self.m3_hex_h) / 2
+        return (self.band_wall - self.m3_head_h) + self.boss_depth + nut_far
+
+    def seam_bolt_mm(self) -> int:
+        return m3_stock(self.seam_stack_mm())
+
+    def boss_bolt_mm(self) -> int:
+        return m3_stock(self.boss_stack_mm())

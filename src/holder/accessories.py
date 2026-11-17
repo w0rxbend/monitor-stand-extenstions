@@ -22,6 +22,9 @@ the pocket for that ear. Width and hole size are from a photo, not calipers.
 
 from build123d import Cylinder, Part, Pos, Rot
 
+from holder.band import build_halves
+from holder.block import build as build_block
+from holder.block import riser_top, top_hole_xy
 from holder.common import (
     Check,
     box_from,
@@ -299,6 +302,26 @@ def on_link_face(plate: Part, link_shift_y: float, z: float = 0.0) -> Part:
     face_y = link_shift_y + LINK
     face_top = z + HINGE_Z + PAD_T / 2
     return place(plate, face_y - CAM_MOUNT_Y, face_top + 0.4)
+
+
+def clamp_assembly(spec: Params) -> dict[str, Part]:
+    """Band, block on boss_face_y, one hinge, and the camera plate. No hinge_mid."""
+    front, back = build_halves(spec)
+    brace = build_block(spec)
+    _x, quarter_y = top_hole_xy(spec)[1]
+    shift_y = quarter_y + 16.0
+    shift_z = riser_top(spec) + 0.4
+    base = place(build_hinge_base(spec), shift_y, shift_z)
+    link = place(build_hinge_link(spec), shift_y + JOINT_Y, shift_z)
+    plate = on_link_face(build_cam_plate(spec), shift_y + JOINT_Y, shift_z)
+    return {
+        "band_front": front,
+        "band_back": back,
+        "block": brace,
+        "hinge_base": base,
+        "hinge_link": link,
+        "cam_plate": plate,
+    }
 
 
 def _foot_probe(spec: Params, x: float, y: float, z0: float) -> Part:

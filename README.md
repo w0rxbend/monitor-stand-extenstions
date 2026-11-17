@@ -2,7 +2,7 @@
 
 A TPU band clamps the column of the monitor stand. A PETG block on that band has one 1/4"-20 nut. Every accessory below bolts to that nut, or to the same nut on an arm or a post.
 
-![Block, two-hinge arm, and camera plate, shaded from the STL meshes](docs/renders/hero.png)
+![Block, one-hinge arm, and camera plate, shaded from the STL meshes](docs/renders/hero.png)
 
 The pictures are rasters of the current STL meshes. They are not photographs. Rebuild them with `uv run --with numpy --with pillow python tools/render_gallery.py`.
 
@@ -92,20 +92,20 @@ Each name in `exports/` has `.step`, `.stl`, and `.3mf`. Files are in print orie
 
 Print the coupon first (about 25 minutes). The M3 nut and the 1/4" nut should press into the strip and hold. The strip is a fit check, not part of the assembly.
 
-The band's grip ribs still intersect the column by about 1 mm, so the band will not slide on. Do not print the band until that fit is fixed. The coupon has not been printed. `column_r` (12 mm) and the 1/4" pocket (11.4 mm across-flats, 5.8 mm thick) are estimates.
+The rib tips clear the column by the TPU fit, 0.25 mm. The coupon has not been printed. `column_r` (12 mm) and the 1/4" pocket (11.4 mm across-flats, 5.8 mm thick) are estimates.
 
 The phone ear width and hole size are from that photo scale. Passing CAD checks is not a printed fit.
 
 ## Print
 
-- Band, after the rib fit is fixed: TPU 95A, 25 mm/s, 4 walls, 100% infill in the boss.
+- Band: TPU 95A, 25 mm/s, 4 walls, 100% infill in the boss.
 - Block and the accessories: PETG, 4 walls, 40% gyroid. Horizontal holes print about 0.15 mm small.
 - The block lies on its side (−X down) so the nut slots stay off the bed. The accessories lie on their foot (Z down).
 
 ## Hardware
 
-- 4 × M3×20 + washer + nut (band seam)
-- 4 × M3×16 + nut (boss to block)
+- 4 × M3×20 + washer + nut (band seam, 16.6 mm under the head)
+- 4 × M3×25 + nut (boss to block, 20.3 mm under the head)
 - 4 × M3 nut (block top)
 - 1 × 1/4"-20 nut in the block, plus one in each mount face you use (`hinge_link`, `post`, and each camera does not use a nut in the plate)
 - Each camera: 1 × 1/4"-20 screw, plate thickness plus about 5 mm

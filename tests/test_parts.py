@@ -7,7 +7,15 @@ from build123d import Box, GeomType, import_step
 
 from holder import band, block
 from holder.__main__ import placeholder_box
-from holder.common import box_from, hex_pocket, print_orientation, y_cylinder
+from holder.accessories import clamp_assembly
+from holder.common import (
+    VOL_EPS,
+    box_from,
+    hex_pocket,
+    intersection_volume,
+    print_orientation,
+    y_cylinder,
+)
 from holder.coupon import (
     COUPON_BOLT_Z,
     build_back,
@@ -99,6 +107,30 @@ def band_halves() -> tuple[Params, object, object]:
     spec = Params()
     front, back = band.build_halves(spec)
     return spec, front, back
+
+
+def test_band_and_stack_clear_the_column(band_halves: tuple) -> None:
+    spec, front, back = band_halves
+    stack = clamp_assembly(spec)
+    assert "hinge_mid" not in stack
+    assert stack["block"].bounding_box().min.Y == pytest.approx(band.boss_face_y(spec), abs=0.05)
+    placed = (front, back, *stack.values())
+    top = max(part.bounding_box().max.Z for part in placed)
+    column = band.column_solid(spec, top)
+    for part in placed:
+        overlap = intersection_volume(part, column)
+        assert overlap <= VOL_EPS, (getattr(part, "label", ""), overlap)
+
+
+def test_screw_stock_covers_the_stack() -> None:
+    spec = Params()
+    assert block.PLATE_DEPTH == spec.boss_depth
+    assert spec.seam_bolt_mm() >= spec.seam_stack_mm()
+    assert spec.boss_bolt_mm() >= spec.boss_stack_mm()
+    text = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+    assert f"M3×{spec.seam_bolt_mm()}" in text
+    assert f"M3×{spec.boss_bolt_mm()}" in text
+    assert "M3×16" not in text
 
 
 def test_band_checks_pass(band_halves: tuple, tmp_path: Path) -> None:

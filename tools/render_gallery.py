@@ -18,15 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from shade_stl import load_stl, shade  # noqa: E402
 
-from holder.accessories import (  # noqa: E402
-    BUILDERS,
-    JOINT_Y,
-    LINK,
-    on_link_face,
-    place,
-)
-from holder.block import build as build_block  # noqa: E402
-from holder.block import riser_top, top_hole_xy  # noqa: E402
+from holder.accessories import BUILDERS, clamp_assembly  # noqa: E402
 from holder.params import Params  # noqa: E402
 
 PLASTIC = (226.0, 228.0, 232.0)
@@ -44,25 +36,20 @@ def _mesh(part, directory: Path, name: str):
 def main() -> None:
     spec = Params()
     parts = {part.label: part for part in (builder(spec) for builder in BUILDERS)}
-    brace = build_block(spec)
-    _qx, quarter_y = top_hole_xy(spec)[1]
-    shift_y = quarter_y + 16.0
-    shift_z = riser_top(spec) + 0.4
-    base = place(parts["hinge_base"], shift_y, shift_z)
-    mid = place(parts["hinge_mid"], shift_y + JOINT_Y, shift_z)
-    link_1 = place(parts["hinge_link"], shift_y + JOINT_Y, shift_z)
-    link_2 = place(parts["hinge_link"], shift_y + JOINT_Y + LINK, shift_z)
-    plate = on_link_face(parts["cam_plate"], shift_y + JOINT_Y + LINK, shift_z)
+    stack = clamp_assembly(spec)
 
     shots = {
         "hero": (
-            ("block", brace),
-            ("base", base),
-            ("mid", mid),
-            ("link", link_2),
-            ("plate", plate),
+            ("block", stack["block"]),
+            ("base", stack["hinge_base"]),
+            ("link", stack["hinge_link"]),
+            ("plate", stack["cam_plate"]),
         ),
-        "arm": (("block", brace), ("base", base), ("link", link_1)),
+        "arm": (
+            ("block", stack["block"]),
+            ("base", stack["hinge_base"]),
+            ("link", stack["hinge_link"]),
+        ),
         "platform": (("plate", parts["cam_plate"]),),
         "phone": (("phone", parts["phone"]),),
         "gopro": (("gopro", parts["gopro"]),),
