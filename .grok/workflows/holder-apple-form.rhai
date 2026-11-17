@@ -162,6 +162,7 @@ for round in rounds {
         ip += "Keep one valid solid per part. Captive nuts stay in side slots. Phone stays a pocket. Do not print GoPro prongs. Do not change PHONE_EAR_W, column_w, column_d, column_r, the ZV-E10 slot, or the GoPro pocket size. ";
         ip += "Coupon measuring faces stay sharp. Do not commit coupon mesh noise. ";
         ip += "A seam fillet that throws or inflates the block bounding box must be reverted. Plate and riser corners stay at 3 mm and the arm at 5 mm unless you prove the print bounding box. ";
+        ip += "Do not revert the rib clearance or m3_stock. The hero must include both band halves, the block, hinge_base, hinge_mid, hinge_link, and cam_plate. ";
         ip += "Derive screw lengths from the stack in params.py. Update README hardware lines to those lengths. ";
         ip += "Run uv run ruff check src tests tools, uv run pytest -q, and uv run python -m holder. All must exit 0 or ok is false. ";
         ip += "Then uv run --with numpy --with pillow python tools/render_gallery.py. Shade from STL. Do not call an image generator. ";
@@ -187,7 +188,8 @@ for round in rounds {
         cp += "You may run uv run pytest -q. Do not edit. Do not commit. ";
         cp += "accept is true only when pytest would pass, the band ribs clear the column, screw lengths in the README match params.py, and the hero is an STL shade of the clamp plus an arm plus the camera plate. ";
         cp += "accept is false if the diff adds a keypad, a PCB, printed GoPro prongs, a phone cradle, or a changed PHONE_EAR_W, column size, ZV-E10 slot, or GoPro pocket. ";
-        cp += "done is true only when the hero reads as one bracket with recessed fasteners, not a stack of square pads. ";
+        cp += "Open docs/renders/hero.png and look at it. done is false while the block still reads as three boxes. A stadium plate does not excuse the block. ";
+        cp += "done is false when the hero omits the band halves or the second hinge. ";
         cp += "stop_adding is true when another feature would add a part the clamp does not need. ";
         cp += "critique is the single next fix, or says no further change helps. ";
         cp += "Implement evidence, JSON: ";
@@ -217,7 +219,7 @@ for round in rounds {
 
 phase("Commit");
 let gate = "REJECT";
-if accept == true { gate = "ACCEPT"; }
+if accept == true && done == true { gate = "ACCEPT"; }
 let gp = "Work in ";
 gp += root;
 gp += " on branch main. Gate word: ";
