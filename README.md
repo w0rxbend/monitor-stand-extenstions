@@ -2,7 +2,7 @@
 
 A TPU band clamps the column of the monitor stand. A PETG block on that band has one 1/4"-20 nut. Every accessory below bolts to that nut, or to the same nut on an arm or a post.
 
-![Block, one-hinge arm, and camera plate, shaded from the STL meshes](docs/renders/hero.png)
+![Band, block, two-hinge arm, and camera plate, shaded from the STL meshes](docs/renders/hero.png)
 
 The pictures are rasters of the current STL meshes. They are not photographs. Rebuild them with `uv run --with numpy --with pillow python tools/render_gallery.py`.
 

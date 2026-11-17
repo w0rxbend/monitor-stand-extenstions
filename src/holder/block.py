@@ -1,6 +1,6 @@
 """PETG L block: plate on the boss, arm, riser with the extension face."""
 
-from build123d import Cylinder, GeomType, Part, Pos, fillet
+from build123d import Cylinder, GeomType, Part, Pos
 
 from holder.band import boss_face_y, boss_hole_centers, boss_z0
 from holder.common import (
@@ -26,7 +26,7 @@ PRINT = {"block": (-1, 0, 0)}  # on its side; -X is the bed, so nut slots stay o
 
 # Nut is 2.6 thick. 12 mm leaves a wall on both sides and matches boss_depth.
 PLATE_DEPTH = 12.0
-# 1/4" pocket bottom sits 19.8 mm under the top. 16 mm keeps that stack above the arm.
+# Void probe starts here: below the 1/4" pocket, clear of the plate screws.
 ARM_SECTION = 16.0
 # Nut slots need a flat mouth, so the plate and riser stay at R=3.
 # R=5 is the largest arm corner that stays inside the blank after the seam fillet.
@@ -48,6 +48,11 @@ def _plate_y1(spec: Params) -> float:
 
 def _arm_y1(spec: Params) -> float:
     return _plate_y1(spec) + spec.arm_length
+
+
+def _bar_top(spec: Params) -> float:
+    """Arm top. Same plane as the plate, so the body is one bar and a riser."""
+    return boss_z0(spec) + spec.boss_w
 
 
 def _riser_y1(spec: Params) -> float:
@@ -87,35 +92,15 @@ def _blank(spec: Params) -> Part:
         z0,
         hx,
         _arm_y1(spec),
-        z0 + ARM_SECTION,
+        _bar_top(spec),
         ARM_CORNER_R,
         along="y",
     )
     riser = round_box(
         -hx, _arm_y1(spec), z0, hx, _riser_y1(spec), riser_top(spec), RISER_CORNER_R
     )
-    body = plate + arm + riser
-    return fillet(_concave_edges(body, spec), spec.fillet_r)
-
-
-def _concave_edges(body: Part, spec: Params) -> list:
-    z_step = boss_z0(spec) + ARM_SECTION
-    seams = (_plate_y1(spec), _arm_y1(spec))
-    found = []
-    for edge in body.edges():
-        if edge.geom_type != GeomType.LINE:
-            continue
-        bounds = edge.bounding_box()
-        if bounds.size.Y > 0.4 or bounds.size.Z > 0.4:
-            continue
-        center = edge.center()
-        if abs(center.Z - z_step) > 0.4:
-            continue
-        if any(abs(center.Y - seam) < 0.4 for seam in seams):
-            found.append(edge)
-    if len(found) < 2:
-        raise RuntimeError(f"expected the two concave L edges, found {len(found)}")
-    return found
+    # A 3 mm fillet on this riser step makes the 3MF mesh invalid. Leave the step sharp.
+    return plate + arm + riser
 
 
 def _hex_ring_y(af: float, wall: float, x: float, z: float, y0: float, y1: float) -> Part:
@@ -167,6 +152,9 @@ def _cut_top(body: Part, spec: Params) -> Part:
     for x, y in m3_xy:
         z0, z1 = _pocket_z(spec, M3_BELOW_TOP, spec.m3_hex_h)
         face = y_lo if abs(y - y_lo) <= abs(y - y_hi) else y_hi
+        # The bar meets the plate. Pull arm-side mouths back through that bar.
+        if face == y_lo:
+            face = y_lo - spec.m3_hex_h
         pocket = hex_pocket(spec.m3_hex_af, spec.m3_hex_h, at=(x, y, z0))
         hole = _z_cyl(x, y, z0 - HOLE_PAST, top + 0.2, spec.m3_through)
         body = body - pocket - _y_slot(x, y, face, z0, z1, spec.m3_hex_af) - hole

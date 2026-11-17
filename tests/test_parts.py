@@ -7,7 +7,7 @@ from build123d import Box, GeomType, import_step
 
 from holder import band, block
 from holder.__main__ import placeholder_box
-from holder.accessories import clamp_assembly
+from holder.accessories import add_hinge_mid, clamp_assembly
 from holder.common import (
     VOL_EPS,
     box_from,
@@ -113,13 +113,27 @@ def test_band_and_stack_clear_the_column(band_halves: tuple) -> None:
     spec, front, back = band_halves
     stack = clamp_assembly(spec)
     assert "hinge_mid" not in stack
+    hero = add_hinge_mid(stack, spec)
+    assert hero["hinge_mid"].label == "hinge_mid"
     assert stack["block"].bounding_box().min.Y == pytest.approx(band.boss_face_y(spec), abs=0.05)
-    placed = (front, back, *stack.values())
+    placed = (front, back, *hero.values())
     top = max(part.bounding_box().max.Z for part in placed)
     column = band.column_solid(spec, top)
     for part in placed:
         overlap = intersection_volume(part, column)
         assert overlap <= VOL_EPS, (getattr(part, "label", ""), overlap)
+    for name in ("hinge_base", "hinge_mid", "hinge_link", "cam_plate"):
+        clash = intersection_volume(hero[name], hero["block"])
+        assert clash < 1.0, (name, clash)
+
+
+def test_block_bar_fills_the_old_valley(band_halves: tuple) -> None:
+    spec, _front, _back = band_halves
+    part = block.build(spec)
+    z0 = band.boss_z0(spec)
+    y0 = band.boss_face_y(spec) + block.PLATE_DEPTH
+    valley = box_from(-4, y0 + 2, z0 + 18, 4, y0 + spec.arm_length - 2, z0 + 30)
+    assert intersection_volume(part, valley) > valley.volume * 0.5
 
 
 def test_screw_stock_covers_the_stack() -> None:

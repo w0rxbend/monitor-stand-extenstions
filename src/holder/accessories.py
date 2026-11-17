@@ -304,13 +304,17 @@ def on_link_face(plate: Part, link_shift_y: float, z: float = 0.0) -> Part:
     return place(plate, face_y - CAM_MOUNT_Y, face_top + 0.4)
 
 
+def _riser_shift(spec: Params) -> tuple[float, float]:
+    """Y and Z that put the hinge foot hole on the block's 1/4\" nut, 0.4 mm above the pad."""
+    _x, quarter_y = top_hole_xy(spec)[1]
+    return quarter_y + 16.0, riser_top(spec) + 0.4
+
+
 def clamp_assembly(spec: Params) -> dict[str, Part]:
     """Band, block on boss_face_y, one hinge, and the camera plate. No hinge_mid."""
     front, back = build_halves(spec)
     brace = build_block(spec)
-    _x, quarter_y = top_hole_xy(spec)[1]
-    shift_y = quarter_y + 16.0
-    shift_z = riser_top(spec) + 0.4
+    shift_y, shift_z = _riser_shift(spec)
     base = place(build_hinge_base(spec), shift_y, shift_z)
     link = place(build_hinge_link(spec), shift_y + JOINT_Y, shift_z)
     plate = on_link_face(build_cam_plate(spec), shift_y + JOINT_Y, shift_z)
@@ -322,6 +326,17 @@ def clamp_assembly(spec: Params) -> dict[str, Part]:
         "hinge_link": link,
         "cam_plate": plate,
     }
+
+
+def add_hinge_mid(stack: dict[str, Part], spec: Params) -> dict[str, Part]:
+    """One-hinge stack plus hinge_mid. The link and the plate move out by one link."""
+    shift_y, shift_z = _riser_shift(spec)
+    placed = dict(stack)
+    placed["hinge_mid"] = place(build_hinge_mid(spec), shift_y + JOINT_Y, shift_z)
+    link_y = shift_y + JOINT_Y + LINK
+    placed["hinge_link"] = place(build_hinge_link(spec), link_y, shift_z)
+    placed["cam_plate"] = on_link_face(build_cam_plate(spec), link_y, shift_z)
+    return placed
 
 
 def _foot_probe(spec: Params, x: float, y: float, z0: float) -> Part:

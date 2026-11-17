@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from shade_stl import load_stl, shade  # noqa: E402
 
-from holder.accessories import BUILDERS, clamp_assembly  # noqa: E402
+from holder.accessories import BUILDERS, add_hinge_mid, clamp_assembly  # noqa: E402
 from holder.params import Params  # noqa: E402
 
 PLASTIC = (226.0, 228.0, 232.0)
@@ -37,13 +37,17 @@ def main() -> None:
     spec = Params()
     parts = {part.label: part for part in (builder(spec) for builder in BUILDERS)}
     stack = clamp_assembly(spec)
+    hero = add_hinge_mid(stack, spec)
 
     shots = {
         "hero": (
-            ("block", stack["block"]),
-            ("base", stack["hinge_base"]),
-            ("link", stack["hinge_link"]),
-            ("plate", stack["cam_plate"]),
+            ("band_front", hero["band_front"]),
+            ("band_back", hero["band_back"]),
+            ("block", hero["block"]),
+            ("base", hero["hinge_base"]),
+            ("mid", hero["hinge_mid"]),
+            ("link", hero["hinge_link"]),
+            ("plate", hero["cam_plate"]),
         ),
         "arm": (
             ("block", stack["block"]),
