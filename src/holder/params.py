@@ -1,7 +1,7 @@
 """Every dimension the parts are built from. Bought parts carry their published source.
 
 A value with no published source is marked `estimated:` and stays an estimate until
-it is measured on a printed coupon or a supplier sheet.
+it is measured on a printed coupon, with calipers, or on a supplier sheet.
 """
 
 import math
@@ -12,29 +12,69 @@ MATERIALS = {
     "PETG": {"wall_min": 1.5, "fit": 0.30},
 }
 PETG_WALL = MATERIALS["PETG"]["wall_min"]
+INCH = 25.4
 
 
 @dataclass(frozen=True, slots=True)
-class Nut:
-    """Hex nut: published max sizes, and the pocket the parts cut for it (max + fit)."""
+class ShoulderScrew:
+    """ISO 7379 hexagon socket shoulder screw. `stock` lists shoulder lengths l1.
+
+    The shoulder is the stop: tightened, its end lands on the brass insert, so the bolt
+    loop closes through steel and brass, never through PETG.
+    """
 
     name: str
     standard: str
-    af_max: float
-    m_max: float
-    minor_d: float  # internal thread minor diameter; the screw overlaps it on purpose
-    pocket_af: float
-    pocket_m: float
+    d: float  # thread
+    pitch: float
+    shoulder_d: float
+    head_d: float
+    head_k: float
+    key: float
+    thread_b: float  # thread length past the shoulder end (b max)
+    stock: tuple[float, ...]
+    l1_plus: float  # l1 tolerance is 0 / +l1_plus
     source: str
+
+    def stock_at_least(self, length: float) -> float:
+        for size in self.stock:
+            if size >= length - 1e-9:
+                return size
+        raise ValueError(f"no stock {self.name} covers {length:.2f} mm")
+
+
+@dataclass(frozen=True, slots=True)
+class DiscSpring:
+    """DIN 2093 disc spring. `table` is (s / h0, force N) as published, s the deflection."""
+
+    name: str
+    standard: str
+    outer: float
+    inner: float
+    t: float
+    h0: float
+    table: tuple[tuple[float, float], ...]
+    source: str
+
+    @property
+    def free_height(self) -> float:
+        return self.t + self.h0
+
+    def force(self, deflection: float) -> float:
+        """Force at `deflection` (mm), linear between the published points."""
+        share = deflection / self.h0
+        if share < 0 or share > 1.0 + 1e-9:
+            raise ValueError(f"{self.name}: deflection {deflection:.3f} outside 0..h0")
+        points = ((0.0, 0.0), *self.table)
+        for (s0, f0), (s1, f1) in zip(points, points[1:]):
+            if share <= s1 + 1e-12:
+                return f0 + (f1 - f0) * (share - s0) / (s1 - s0)
+        return points[-1][1]
 
 
 @dataclass(frozen=True, slots=True)
 class Screw:
-    """Screw with a socket head (ISO 4762, ASME B18.3) or a carriage head (DIN 603).
-
-    `head_d` is the max head diameter, `bearing_d` the min one (what is sure to bear).
-    A carriage bolt has a square neck `neck_w` wide and `neck_h` tall under its dome head.
-    """
+    """Socket head cap screw (ASME B18.3 here: the camera screw)."""
 
     name: str
     standard: str
@@ -43,15 +83,12 @@ class Screw:
     head_d: float
     bearing_d: float
     head_k: float
-    key: float  # hex key across flats; 0 for a carriage bolt (the neck stops it turning)
+    key: float
     stock: tuple[float, ...]
     length_tol: float  # estimated: ISO 4759-1 js15 band, not checked per length
     source: str
-    neck_w: float = 0.0
-    neck_h: float = 0.0
 
     def stock_at_least(self, length: float) -> float:
-        """Shortest stock length that is at least `length`."""
         for size in self.stock:
             if size >= length - 1e-9:
                 return size
@@ -78,32 +115,33 @@ class Insert:
     hole_d: float
     length: float
     wall_min: float  # maker's minimum PETG round the knurl
+    minor_d: float  # internal thread minor diameter (ISO 965-1 D1); the screw overlaps it
     source: str
 
 
-INCH = 25.4
+# fasten.it ISO 7379 table: M6 ds 8, b max 11.25, dk max 13, k max 5.5, s 4;
+# M5 ds 6.5, b max 9.75, dk max 10, k max 4.5, s 3. Lengths: fasten.it nominal list.
+# l1 tolerance 0/+0.25: Elesa and Misumi ISO 7379 sheets.
+SHOULDER_M6 = ShoulderScrew(
+    "M6 shoulder screw, 8 mm shoulder", "ISO 7379", 6.0, 1.0, 8.0, 13.0, 5.5, 4.0, 11.25,
+    (10, 12, 16, 20, 25, 30, 35, 40, 50, 60), 0.25, "fasten.it ISO 7379; Elesa ISO 7379",
+)
+SHOULDER_M5 = ShoulderScrew(
+    "M5 shoulder screw, 6.5 mm shoulder", "ISO 7379", 5.0, 0.8, 6.5, 10.0, 4.5, 3.0, 9.75,
+    (10, 12, 16, 20, 25, 30, 35, 40), 0.25, "fasten.it ISO 7379; Elesa ISO 7379",
+)
 
-# Wermac ISO 4032 table; HB&H cut sheet. Minor diameter D1 from ISO 965-1.
-M6_NUT = Nut("M6 nut", "ISO 4032", 10.00, 5.20, 4.917, 10.20, 5.50, "Wermac ISO 4032; HB&H")
-# amesweb ASME B18.2.2 hex nut table: F 0.428-0.438 in, H 0.212-0.226 in. Minor: ASME B1.1.
-QUARTER_NUT = Nut(
-    "1/4\"-20 hex nut", "ASME B18.2.2", 11.13, 5.74, 0.1887 * INCH, 11.45, 6.05,
-    "amesweb ASME B18.2.2 table",
+# fasten.it DIN 2093 table (DIN 2093 is replaced by DIN EN 16983 with the same sizes).
+# Forces at s = 0.25, 0.5, 0.75 and 1.0 h0.
+SPRING_B16 = DiscSpring(
+    "disc spring 16 x 8.2 x 0.6", "DIN 2093 B", 16.0, 8.2, 0.6, 0.45,
+    ((0.25, 172.0), (0.5, 304.0), (0.75, 410.0), (1.0, 503.0)), "fasten.it DIN 2093 table",
 )
-QUARTER_NUT_AF_MIN = 10.87  # amesweb ASME B18.2.2: F min 0.428 in
+SPRING_C14 = DiscSpring(
+    "disc spring 14 x 7.2 x 0.35", "DIN 2093 C", 14.0, 7.2, 0.35, 0.45,
+    ((0.25, 68.0), (0.5, 106.0), (0.75, 123.0), (1.0, 131.0)), "fasten.it DIN 2093 table",
+)
 
-# Westfield ISO 4762: M3 dk 5.68 max, 5.32 min (min taken as the bearing diameter).
-M3_SHCS = Screw(
-    "M3 socket head cap screw", "ISO 4762", 3.0, 0.5, 5.68, 5.32, 3.00, 2.5,
-    (6, 8, 10, 12, 16, 20, 25, 30, 35, 40, 45, 50), 0.3, "Westfield ISO 4762 table",
-)
-# Fabory DIN 603 M6 page: dk max 16.55, k max 3.88, neck fn max 4.6, Vn max 6.48.
-# Aspen Fasteners DIN 603 M6: dk min 15.45. Stock lengths are the common catalogue ones.
-M6_CARRIAGE = Screw(
-    "M6 carriage bolt", "DIN 603", 6.0, 1.0, 16.55, 15.45, 3.88, 0.0,
-    (16, 20, 25, 30, 35, 40, 45, 50, 60), 0.42,
-    "Fabory DIN 603 M6; Aspen Fasteners DIN 603", neck_w=6.48, neck_h=4.6,
-)
 QUARTER_SHCS = Screw(
     "1/4\"-20 socket head cap screw", "ASME B18.3", 0.25 * INCH, INCH / 20, 0.375 * INCH,
     0.36 * INCH, 0.25 * INCH, 0.1875 * INCH,
@@ -111,51 +149,57 @@ QUARTER_SHCS = Screw(
     "Westfield ASME B18.3 table",
 )
 
-M3_WASHER = Washer("M3 washer", "ISO 7089", 3.2, 7.0, 0.5, "Westfield ISO 7089")
+# Westfield ISO 7089: M8 8.4 / 16 / 1.6.
+WASHER_M8 = Washer("M8 washer", "ISO 7089", 8.4, 16.0, 1.6, "Westfield ISO 7089")
 # fasten.it DIN EN ISO 7093-1 table: M6 6.4 / 18 / 1.6 (Keller & Kalmbach sheet agrees).
-M6_LARGE_WASHER = Washer("M6 large washer", "ISO 7093-1", 6.4, 18.0, 1.6,
+WASHER_M6_LARGE = Washer("M6 large washer", "ISO 7093-1", 6.4, 18.0, 1.6,
                          "fasten.it ISO 7093-1 table; Keller & Kalmbach")
-# 3djake ruthex table, M3 row: D1 4.6, D3 4.0, L 5.7, W min 1.6. D1 is read as the knurl
-# and D3 as the hole; the table does not label them, so confirm on the coupon.
-M3_INSERT = Insert("M3 heat-set insert", "ruthex RX-M3x5.7", 4.6, 4.0, 5.7, 1.6,
-                   "3djake ruthex RX-M3x5.7 table")
 
-M3_CLEAR = 3.4  # ISO 273 medium
-M6_CLEAR = 6.6  # ISO 273 medium
+# 3djake ruthex tables: M5 D1 7.1, D3 6.4, L 9.5, W min 2.6; M6 D1 8.7, D3 8.0, L 12.7,
+# W min 3.3. D1 is read as the knurl and D3 as the hole (RS PRO M5 sheet: hole 6.4 for a
+# 7.1 body). Minor diameters: ISO 965-1 D1.
+INSERT_M5 = Insert("M5 heat-set insert", "ruthex RX-M5x9.5", 7.1, 6.4, 9.5, 2.6, 4.134,
+                   "3djake ruthex RX-M5x9.5 table")
+INSERT_M6 = Insert("M6 heat-set insert", "ruthex RX-M6x12.7", 8.7, 8.0, 12.7, 3.3, 4.917,
+                   "3djake ruthex RX-M6x12.7 table")
+
+SHOULDER_CLEAR = 0.4  # shoulder bore over the f9 shoulder: ISO 273 fine series spacing
 QUARTER_CLEAR = 6.6
-M3_WASHER_BORE = (7.4, 3.8)  # washer 7.0 + 0.4, head 3.0 + washer 0.5 + 0.3
-M6_NECK_HOLE = (6.48 + 0.3, 4.6 + 0.3)  # square, depth: neck max + 0.3
-QUARTER_WASHER_SLOT = (18.4, 1.6 + 6.35 + 0.35)  # ISO 7093 washer + 1/4" head + 0.35
 LEAD_IN = 0.4
-INSERT_SINK = 0.2  # insert top below its face, so it never lifts the part on it
-INSERT_ENGAGE = 4.5  # 1.5 d of an M3 in the insert's 5.7 mm thread
-SEAM_CORNER_ROOM = 4.55  # a G2 seam corner (setback 8) dips 0.16 mm this far in: under the sink
-QUARTER_TIP_FLOOR = 22.5  # 1/4" port tip bore floor under the face; stud length is the user's
-QUARTER_DROP = 1.5  # the 1/4" nut drops this far into its pocket and cannot slide back
+INSERT_SINK = 0.2  # insert top below its face: the shoulder lands on brass, not on PETG
+INSERT_TIP_ROOM = 0.8  # hole past the insert, for a thread longer than the insert
+QUARTER_WASHER_SEAT = 18.4  # ISO 7093 washer + 0.4
+PLATE_UNDER_HEAD = 6.0  # PETG under the camera washer: puts 1/2" inside the socket
+PRINT_TOL = 0.15  # estimated: printed thickness of a clamped stack, +-
+RING_T = 1.0  # J3 TPU friction ring
+RING_TOL = 0.1  # estimated: printed TPU ring thickness, +-
 
-# Bolted joints. Preload F = T / (K d). estimated: K 0.2 for dry zinc-plated steel.
-NUT_FACTOR = 0.2
-PRELOAD_N = {
-    "m3": 80.0,  # insert pull-out limit at 1.10 MPa; above the 2x foot bolt load
-    "joint": 400.0,  # holds the 2x moment on the rosette with margin (rosette rows)
-    "camera": 394.0,  # 0.5 Nm on the 1/4" camera screw, on an 18 mm washer
-    "port": 236.0,  # 0.3 Nm on a stud in the 1/4" port
-}
 PETG_UTS = {"along": 38.5, "across": 19.0}  # Ultimaker PETG TDS, XY and Z
 # Sustained limits, 0.1 x UTS (DESIGN 5). Bearing is compression and closes the layers,
 # so it uses the along-layer value. Insert pull-out shears the layer planes: across, /sqrt 3.
 BEARING_LIMIT = 0.1 * PETG_UTS["along"]
 INSERT_SHEAR_LIMIT = 0.1 * PETG_UTS["across"] / math.sqrt(3)
-ROSETTE_MU = 0.2  # estimated: PETG on PETG
+MU_PETG = 0.2  # estimated: PETG on PETG (rosette flanks, the pivot face)
+MU_TPU = 0.5  # estimated: TPU 95A on PETG (the J3 ring). Confirm on the coupon.
+NUT_FACTOR = 0.2  # estimated: K for dry zinc-plated steel
+CAMERA_HAND_NM = 1.0  # estimated: a firm hand on a 3/16" key, short leg
 
-# Sony ZV-E10 help guide: 115.2 x 64.2 x 44.8 mm (W x H x D). Tripod screw thread under 5.5 mm.
+# Sony ZV-E10 help guide: 115.2 x 64.2 x 44.8 mm (W x H x D). Tripod screw under 5.5 mm.
 ZVE10_BODY = (115.2, 64.2, 44.8)
 ZVE10_THREAD_MAX = 5.5
 ZVE10_THREAD_MIN = 4.0  # estimated: about three 1/4"-20 threads
+ZVE10_MASS = 0.343  # Sony spec sheet, with battery and card
+# estimated: the tripod socket sits under the lens axis, 13 mm from the body centre toward
+# the lens side, 2 mm behind mid depth. Not on Sony's pages: confirm with calipers.
+ZVE10_SOCKET = (13.0, 2.0)
+# estimated: battery and card door on the grip end of the bottom, 36 x 24 mm, 4 mm in from
+# the end. Sony's help guide shows it there but gives no size. Confirm with calipers.
+ZVE10_DOOR = (36.0, 24.0, 4.0)
+ZVE10_DOOR_SWING = 30.0  # the door and a dummy-battery plug need this much room below
 
 
-def torque_nm(preload: float, screw: Screw) -> float:
-    return NUT_FACTOR * screw.d * preload / 1000
+def preload_n(torque: float, d: float) -> float:
+    return torque * 1000 / (NUT_FACTOR * d)
 
 
 def ceil_to(value: float, step: float) -> float:
@@ -175,55 +219,44 @@ class Params:
     rib_pitch: float = 5.0
     liner_t: float = 2.0
 
-    # Collar shell, PETG.
+    # Collar, PETG: one turned-looking body split at the seam.
     collar_h: float = 40.0
     lip_h: float = 1.2
     lip_reach: float = 1.7  # how far the lip covers the liner, radially
-    seam_z: tuple[float, float] = (10.0, 30.0)
-    seam_back_skin: float = 3.0
-    outer_half_d: float = 35.0
-    front_setback: float = 14.0
-    taper_setback: float = 11.0
-    taper_start_y: float = 22.0  # room for the seam corner and the taper corner
-    neck_y: float = 44.0
-    mf_y: float = 57.0
-    deck_z: float = 16.0  # the deck (top tier, full plan) runs from here to the top
-    ring_inset: float = 1.0  # the lower ring sits this far inside the deck: a shadow line
-    seam_setback: float = 9.5  # seam-face plan corner: radius 0.47 x setback, over the 4 roll
-    seam_tip_room: float = 10.0  # drilled tip bore past the back seam face (M3x30 tip: 8.6)
-
-    # Mount face MF-40 and the foot that sits on it.
-    mf_size: float = 40.0
-    mf_setback: float = 12.0
-    mf_m3_spacing: float = 20.0
-    foot_t: float = 8.0
-    foot_under_head: float = 4.2  # PETG under the washer
+    seam_z: tuple[float, float] = (10.0, 28.0)  # two 16.4 counterbores, 1.6 of PETG between
+    outer_half_d: float = 36.0  # front face
+    front_setback: float = 16.0
+    shoulder_setback: float = 12.0
+    collar_bulge: float = 2.0  # the barrel: an exact parabola, visible in every view
+    pivot_y: float = 52.0  # pan pivot on the collar's back: the pedestal foot clears the bore
+    pivot_r: float = 22.0  # the back reaches this far behind the pivot
+    seam_crush: float = 0.6  # rib crush the seam springs must follow (0.3 a side: 37 % of a rib)
+    column_tol: float = 0.3  # estimated: column depth band the seam springs must cover
 
     # Arm.
-    arm_x0: float = 3.5  # rosette plane of J1, clear of the foot screw key rods
-    knuckle_r: float = 14.5  # rosette r_out + 0.5 flat + the 1.0 chamfer
-    knuckle_t: float = 10.0
+    knuckle_r: float = 15.5
+    link_t: float = 14.0  # the far knuckle holds a 12.9 mm insert hole and a 1.1 floor
     teeth: int = 24
-    rosette_r_in: float = 5.0
+    rosette_r_in: float = 7.7  # insert knurl 4.35 + maker wall 3.3, then the teeth
     rosette_r_out: float = 13.0
     tooth_trunc: float = 0.15
     flank_fit: float = 0.10
     index_lift: float = 2.2
     link_pitch: float = 70.0
     link_waist: float = 20.0
-    j1_rise: float = 18.0  # J1 above the foot top
-    head_block_gap: float = 16.0  # head MF block bottom above J3
-    knob_d: float = 28.0
-    knob_roof: float = 2.0
-    knob_tip_room: float = 16.0  # blind bolt bore in the knob, from its base
-    hero_angles: tuple[float, float, float] = (75.0, 120.0, 0.0)  # link 1, link 2, head
+    ball_r: float = 16.6  # turned ball knuckle on arm_base
+    ball_flat_x: float = 6.0  # the milled J1 flat, off the pan axis
+    head_t: float = 31.0  # arm_head width along Y
+    platform_reach: float = 34.0  # camera platform past the J3 friction face (toward -X)
+    camera_x: float = 19.0  # camera screw past the J3 friction face: clear of arm_tip
+    hero_angles: tuple[float, float, float] = (75.0, 120.0, 0.0)  # link, tip, head
     folded_angles: tuple[float, float, float] = (90.0, 300.0, 0.0)
+    hero_pan: float = 0.0
 
-    # Load case (estimated: ZV-E10 about 343 g with battery, plus lens and margin).
+    # Load case (estimated: ZV-E10 343 g with battery, plus a lens and margin).
     payload_kg: float = 1.0
 
-    # Install: the column top above the collar bottom face. The hero pose reaches back over
-    # the column, so the collar must sit near the top; assembly.column_rows measures the limit.
+    # Install: the column top above the collar bottom face (assembly.column_rows).
     column_top_z: float = 100.0
 
     def __post_init__(self) -> None:
@@ -235,7 +268,7 @@ class Params:
             for number in raw if isinstance(raw, tuple) else (raw,):
                 if isinstance(number, bool) or not isinstance(number, (int, float)):
                     raise ValueError(f"{item.name} must be a number")
-                if item.name.endswith("_angles"):
+                if item.name.endswith("_angles") or item.name == "hero_pan":
                     continue
                 if not math.isfinite(number) or number <= 0:
                     raise ValueError(f"{item.name} must be finite and positive, got {number}")
@@ -247,10 +280,12 @@ class Params:
             raise ValueError("a seam screw is outside the collar height")
         if self.rosette_r_out >= self.knuckle_r:
             raise ValueError("rosette does not fit on the knuckle")
-        if any(angle % 15 for angle in (*self.hero_angles, *self.folded_angles)):
-            raise ValueError("joint angles must sit on the 15 degree rosette index")
+        if self.rosette_r_in < INSERT_M6.outer_d / 2 + INSERT_M6.wall_min:
+            raise ValueError("rosette teeth cut into the insert's maker wall")
+        if any(angle % 15 for angle in (*self.hero_angles[:2], *self.folded_angles[:2])):
+            raise ValueError("rosette joint angles must sit on the 15 degree index")
 
-    # Derived collar sizes. Kept as methods so a changed input moves every part.
+    # Derived collar sizes. Kept as properties so a changed input moves every part.
     @property
     def bore_offset(self) -> float:
         return self.tpu_fit + self.rib_h + self.liner_t
@@ -269,49 +304,17 @@ class Params:
         return self.column_d / 2 + self.bore_offset
 
     @property
-    def bore_r(self) -> float:
-        return self.column_r + self.bore_offset
-
-    @property
     def seam_x(self) -> float:
-        """The wider of: the front shank with PETG_WALL, the back insert with its maker wall."""
-        shank = PETG_WALL + M3_CLEAR / 2
-        insert = M3_INSERT.wall_min + M3_INSERT.outer_d / 2
+        """The wider of: the shoulder bore with PETG_WALL, the insert with its maker wall."""
+        shank = PETG_WALL + (SHOULDER_M5.shoulder_d + SHOULDER_CLEAR) / 2
+        insert = INSERT_M5.wall_min + INSERT_M5.outer_d / 2
         return self.bore_half_w + max(shank, insert)
 
     @property
+    def seam_bore_d(self) -> float:
+        """Counterbore for the seam washer, springs and head."""
+        return WASHER_M8.outer + 0.4
+
+    @property
     def outer_half_w(self) -> float:
-        """The wider of two needs, plus the ring inset.
-
-        Washer bore plus the wall, plus 1 mm the soft front corner takes back. Or: the
-        insert's maker wall, plus room for the ring's G2 seam corner to dip less than the
-        insert sink where that wall meets the seam face.
-        """
-        washer = self.seam_x + M3_WASHER_BORE[0] / 2 + 1.8 + 1.0
-        insert = self.seam_x + M3_INSERT.outer_d / 2 + M3_INSERT.wall_min + SEAM_CORNER_ROOM
-        return ceil_to(max(washer, insert) + self.ring_inset, 0.5)
-
-    @property
-    def seam_seat_y(self) -> float:
-        """Deepest washer seat that keeps PETG_WALL to the bore's front corner.
-
-        The bore corner is a circle about (cx, cy). The nearest point of the washer bore
-        in plan is its inner edge at the seat, so the seat sits where that distance is
-        bore_r + PETG_WALL.
-        """
-        cx = self.bore_half_w - self.bore_r
-        cy = -(self.bore_half_d - self.bore_r)
-        dx = self.seam_x - M3_WASHER_BORE[0] / 2 - cx
-        reach = self.bore_r + PETG_WALL
-        if dx >= reach:
-            return cy
-        return cy - math.sqrt(reach * reach - dx * dx)
-
-    @property
-    def mf_z(self) -> float:
-        return self.collar_h
-
-    @property
-    def mf_depth(self) -> float:
-        return QUARTER_TIP_FLOOR + PETG_WALL
-
+        return ceil_to(self.seam_x + self.seam_bore_d / 2 + PETG_WALL + 0.5, 0.5)

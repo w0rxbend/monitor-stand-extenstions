@@ -6,8 +6,7 @@ import pytest
 from build123d import Box, CenterArc, Line, Plane, Pos, Vector, Wire, chamfer
 
 from holder.common import (
-    CaptiveNut,
-    Stack,
+    SeatedInsert,
     bearing_row,
     box_from,
     clash_rows,
@@ -22,6 +21,7 @@ from holder.form import (
     BedLead,
     Frame,
     Roll,
+    Turtle,
     curvature_jumps,
     edge_curvature,
     g2_blend,
@@ -30,8 +30,8 @@ from holder.form import (
     soft_outline,
     soft_rect,
 )
-from holder.params import M3_INSERT, M3_SHCS, QUARTER_DROP, QUARTER_NUT, Params
-from holder.stacks import rosette_preload_need
+from holder.params import INSERT_M6, SHOULDER_M6, SPRING_B16, WASHER_M8, Params
+from holder.stops import Placed, StopSpec
 
 
 def test_soft_outline_is_g2() -> None:
@@ -55,43 +55,79 @@ def test_g2_blend_matches_circle_curvature() -> None:
     assert edge_curvature(blend, start.point) == pytest.approx(0.0, abs=1e-9)
 
 
-def _nut_block(rotate_corner: bool, drop: float = QUARTER_DROP) -> tuple[CaptiveNut, Box]:
-    nut = CaptiveNut("test", QUARTER_NUT, Vector(0, 0, 16), Vector(0, 0, -1), Vector(0, 1, 0),
-                     20, drop=drop)
-    block = box_from(-20, -20, 0, 20, 19, 22)
-    if rotate_corner:
-        # The old hex_pocket: corners on +-X, an AF-wide slot along Y.
-        old = Plane(origin=(0, 0, 16), x_dir=(1, 0, 0), z_dir=(0, 0, -1))
-        af, height = QUARTER_NUT.pocket_af, QUARTER_NUT.pocket_m
-        block -= hex_prism(af, height + drop, old)
-        block -= box_from(-af / 2, 0, 16 - height, af / 2, 20, 16)
-    else:
-        for cutter in nut.cutters():
-            block -= cutter
-    return nut, block
+def _turtle() -> Turtle:
+    path = Turtle((0, 0), 0.0)
+    path.line(10).ellipse(8, 4, 90).arc(6, 90).line(10)
+    return path
 
 
-def test_nut_travels_in_a_corner_on_travel_channel() -> None:
-    nut, block = _nut_block(rotate_corner=False)
-    assert all(row.ok for row in nut.checks(block))
+def test_turtle_soft_is_g2_and_keeps_its_conics() -> None:
+    path = _turtle()
+    hard = Wire([segment.edge() for segment in path.segments])
+    assert max(curvature_jumps(hard)) > 0.1  # the raw G1 path is not G2
+    soft = Wire(path.soft(1.0))
+    assert max(curvature_jumps(soft)) <= 1e-6
+    kinds = {edge.geom_type.name for edge in soft.edges()}
+    assert {"ELLIPSE", "CIRCLE", "LINE"} <= kinds
 
 
-def test_nut_without_a_drop_slides_back_to_the_mouth() -> None:
-    nut, block = _nut_block(rotate_corner=False, drop=0.0)
-    play = [row for row in nut.checks(block) if "play" in row.name]
-    assert play and not play[0].ok
+def test_turtle_ellipse_vertex_curvature_and_closure() -> None:
+    path = Turtle((0, 0), 0.0)
+    path.ellipse(8, 4, 90)
+    segment = path.segments[0]
+    assert segment.frame(0.0).curvature == pytest.approx(4 / 8 ** 2, rel=1e-9)
+    assert segment.frame(1.0).curvature == pytest.approx(8 / 4 ** 2, rel=1e-9)
+    with pytest.raises(ValueError):
+        _turtle().soft(1.0, closed=True)  # it does not end where it started
+    with pytest.raises(ValueError):
+        Turtle((0, 0), 0.0).ellipse(8, 4, 120)
 
 
-def test_old_corner_on_x_pocket_fails_nut_travel() -> None:
-    nut, block = _nut_block(rotate_corner=True)
-    travel = nut.checks(block)[0]
-    assert not travel.ok
+def _nut_block() -> Box:
+    return box_from(-20, -20, 0, 20, 20, 30)
 
 
-def test_stack_rejects_a_tip_past_the_bore() -> None:
-    stack = Stack("test", M3_SHCS, 6.7, 6.7, 3.4, 4.0)
-    assert stack.length == 12
-    assert not all(row.ok for row in stack.rows())
+def test_insert_hole_must_be_blind_and_walled() -> None:
+    insert = SeatedInsert("t", INSERT_M6, Vector(0, 0, 30), Vector(0, 0, -1))
+    block = _nut_block()
+    for cutter in insert.cutters():
+        block -= cutter
+    assert all(row.ok for row in insert.checks(block))
+    through = block - box_from(-1, -1, -1, 1, 1, 31)  # opens the floor
+    assert not insert.checks(through)[1].ok
+    thin = block - box_from(4.5, -2, 10, 9, 2, 25)  # into the 3.3 mm maker wall
+    assert not insert.checks(thin)[0].ok
+
+
+def _stop(l1: float) -> StopSpec:
+    return StopSpec("t", SHOULDER_M6, SPRING_B16, 5, WASHER_M8, WASHER_M8, INSERT_M6, 0.6, l1)
+
+
+def test_spring_force_follows_the_published_table() -> None:
+    assert SPRING_B16.force(0.75 * SPRING_B16.h0) == pytest.approx(410.0)
+    assert SPRING_B16.force(0.625 * SPRING_B16.h0) == pytest.approx(357.0)
+    with pytest.raises(ValueError):
+        SPRING_B16.force(1.2 * SPRING_B16.h0)  # past flat
+
+
+def test_stop_force_is_set_by_geometry_and_a_short_shoulder_goes_flat() -> None:
+    stop = _stop(20.0)
+    low, nominal, high = stop.band(stop.clamped, 0.15)
+    assert low < nominal < high
+    assert nominal == pytest.approx(SPRING_B16.force(0.6 * SPRING_B16.h0))
+    with pytest.raises(ValueError):
+        stop.force(stop.clamped + 2.0, stop.l1)  # 2 mm more PETG: the springs go flat
+
+
+def test_shoulder_must_stop_on_brass() -> None:
+    stop = Placed(_stop(20.0), Vector(0, 0, 40), Vector(0, 0, -1))
+    seated = stop.seated_insert()
+    far = _nut_block()
+    for cutter in seated.cutters():
+        far -= cutter
+    assert stop.shoulder_on_brass(far).ok
+    plugged = far + Pos(0, 0, seated.top.Z + 0.1) * Box(20, 20, 0.2)  # PETG over the insert
+    assert not stop.shoulder_on_brass(plugged).ok
 
 
 def test_clash_rows_flag_overlap_unless_intended() -> None:
@@ -140,6 +176,16 @@ def test_g2_skin_is_g2_and_a_chamfered_box_is_not() -> None:
     assert not all(row.ok for row in skin_rows(chamfered, "box", lambda _c: False))
 
 
+def test_finished_part_rows_catch_a_fused_crease_and_skip_cut_features() -> None:
+    base = g2_skin(soft_rect(40, 40, 12).outer_wire(), 10, Roll(2.0), Roll(2.0))
+    post = Pos(0, 0, 8) * g2_skin(soft_rect(16, 16, 6).outer_wire(), 20, Roll(2.0), Roll(2.0))
+    fused = base + post
+    on_bed = lambda _c: False  # noqa: E731
+    assert not all(row.ok for row in skin_rows(fused, "fused", on_bed, fused))
+    drilled = base - Pos(0, 0, -1) * Box(6, 6, 30)
+    assert all(row.ok for row in skin_rows(drilled, "drilled", on_bed, base))
+
+
 def test_skin_profile_joins_are_g2_and_a_roll_too_big_is_refused() -> None:
     profile = skin_profile(20, Roll(4), BedLead(1.0, 3.0), 0.6)
     assert max(curvature_jumps(profile)) <= 1e-6
@@ -150,16 +196,10 @@ def test_skin_profile_joins_are_g2_and_a_roll_too_big_is_refused() -> None:
 
 
 def test_bearing_and_insert_rows_fail_when_overloaded() -> None:
-    assert bearing_row("t", 80, 29.4).ok
-    assert not bearing_row("t", 200, 29.4).ok
-    assert insert_shear_row("t", M3_INSERT, 80).ok
-    assert not insert_shear_row("t", M3_INSERT, 200).ok
-
-
-def test_rosette_preload_need_grows_with_the_moment() -> None:
-    spec = Params()
-    assert rosette_preload_need(spec, 3700) == pytest.approx(274, rel=0.01)
-    assert rosette_preload_need(spec, 7400) == pytest.approx(548, rel=0.01)
+    assert bearing_row("t", 300, 145.6).ok
+    assert not bearing_row("t", 700, 145.6).ok
+    assert insert_shear_row("t", INSERT_M6, 300).ok
+    assert not insert_shear_row("t", INSERT_M6, 450).ok
 
 
 def test_first_hit_reads_the_face() -> None:
@@ -167,7 +207,8 @@ def test_first_hit_reads_the_face() -> None:
 
 
 @pytest.mark.parametrize("field, value", [("column_w", float("nan")), ("collar_h", -1.0),
-                                          ("liner_t", 1.0), ("hero_angles", (70.0, 120.0, 0.0))])
+                                          ("liner_t", 1.0), ("hero_angles", (70.0, 120.0, 0.0)),
+                                          ("rosette_r_in", 6.0)])
 def test_params_reject_bad_values(field: str, value: object) -> None:
     with pytest.raises(ValueError):
         Params(**{field: value})

@@ -7,7 +7,7 @@ from collections.abc import Callable
 
 from build123d import Part
 
-from holder import accessories, arm, collar, coupons
+from holder import arm, collar, coupons
 from holder.assembly import printed_parts
 from holder.common import Check
 from holder.params import Params
@@ -17,15 +17,17 @@ CHECKS: dict[str, Callable[[Part, Params], list[Check]]] = {
     "collar_back": collar.checks_back,
     "liner_front": collar.checks_liner,
     "liner_back": collar.checks_liner,
+    **{f"seam_cap_{k}": collar.checks_cap for k in range(1, 5)},
     "arm_base": arm.checks_base,
     "arm_link": arm.checks_link,
+    "arm_tip": arm.checks_tip,
     "arm_head": arm.checks_head,
     "knob": arm.checks_knob,
-    **accessories.CHECKS,
+    "j3_ring": arm.checks_ring,
     **dict.fromkeys(coupons.PRINT, coupons.checks),
 }
-PRINT = {**collar.PRINT, **arm.PRINT, **accessories.PRINT, **coupons.PRINT}
-MATERIAL = {**collar.MATERIAL, **arm.MATERIAL, **accessories.MATERIAL, **coupons.MATERIAL}
+PRINT = {**collar.PRINT, **arm.PRINT, **coupons.PRINT}
+MATERIAL = {**collar.MATERIAL, **arm.MATERIAL, **coupons.MATERIAL}
 
 
 def all_parts(spec: Params) -> dict[str, Part]:

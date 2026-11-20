@@ -1,75 +1,53 @@
 # Design brief: the finished holder
 
-Status: implemented in v0.5.0 on `feat/apple-form`. Section 9 lists where the code differs from earlier briefs and why. It replaces the band-and-block design in PLAN.md.
-PLAN.md stays as history. Where they differ, this file wins.
+Status: implemented in v0.6.0 on `feat/apple-form`. Section 9 lists what changed from v0.5 and why. PLAN.md stays as history. Where they differ, this file wins.
 
-Next action for the engineer: print the coupons (section 6.4), press an insert into `coupon_mf`, and close the open items in section 8.
+Next action for the engineer: print the coupons (section 6.4), melt an M6 shoulder screw head into a knob, and close the open items in section 8.
 
-## 0. What is wrong now, and what this brief fixes
+## 0. What v0.5 got wrong, and what this brief fixes
 
-| # | Defect (verified) | Fix in this brief |
+| # | Defect (v0.5 review) | Fix |
 | --- | --- | --- |
-| 1 | `hex_pocket` puts corners on ±X. Slots along Y (block top) and Z (plate) are only AF wide, so the nut hits PETG on its way in. | `captive_nut(travel=...)` turns a corner onto the travel axis. Slot width = AF. A nut-travel check sweeps the real nut (§3.4, §6.1). |
-| 2 | Coupon reuses `clamp_halves` without ribs: bore is 1.25 mm clear per side. Exported coupons are stale. | Coupons are slices of the real parts, made by `part & slab` (§6.4). |
-| 3 | Boss M3×25 tip runs into 4.2 mm of solid PETG. | Every tip bore depth comes from the stack, and bought screws are solids in the clash check (§3.2, §6.2). |
-| 4 | Clash test is pytest-only and allows < 1.0 mm³. | Clash matrix runs in `python -m holder` at 1e-6 mm³ (§6.3). |
-| 5 | Nothing proves a nut can reach its pocket. | Nut-travel check on every captive nut (§6.1). |
-| 6 | Form: rounded boxes stacked. Flat renders. | One plan language, G2 curves, conic profiles, one edge vocabulary, Cycles renders (§1, §6.7). |
-| 7 | 1/4" nut pocket 11.4 × 5.8 leaves 0.06 mm over a max nut (ASME B18.2.2 t max 5.74). | Pocket 11.45 × 6.05 (§3.1). |
-| 8 | TPU band carries the clamp load. TPU 95A compression set is 30–38 % at 23 °C (Essentium, BASF TDS), so it loses clamp force. | PETG collar shell carries the load. TPU is a 2 mm grip liner only (§2). |
+| 1 | Form read as stacked rounded slabs: a collar deck over an inset ring, an arm_base slab tier, a 14.3 mm camera slab, drilled plates. Every body was a 2.5D sweep of one macropad outline. | Each part is one construction: a turned profile, or one skin. The collar is one barrel-walled body split by a straight seam. The pedestal and knob are turned. The head is one skin whose side outline sweeps into the camera platform. The drilled-plate accessories are gone (§9). |
+| 2 | Almost no second-order curves: the collar had none, the plates bulged 0.25 mm. | Exact conics carry the form: the collar wall is a 2 mm parabola; its plan has quarter-ellipse front corners and a half-ellipse back; the pedestal is a ball, a circular waist, a quarter-ellipse flare and an elliptic foot shoulder; the head's platform sweeps into its J3 face through a 10 × 20 quarter ellipse; the knob crown is an ellipse. |
+| 3 | G2 was measured on each skin before fusing, so fused creases were never seen. | Continuity is measured on the finished, cut part. Every edge whose two faces both lie on the uncut body's surface is judged (normal step ≤ 0.5°, curvature step ≤ 2e-3 /mm); a fused crease fails (test). Edges where a cut meets anything are counted as features. |
+| 4 | The camera plate covered the whole ZV-E10 bottom, so the battery and card door could not open. | The camera sits on a 31 mm wide platform at the lens end. The door and 30 mm of swing room below it are a solid in the clash check, clear of every part. |
+| 5 | Every joint turned about X in 15° steps: no pan, no fine aim. | Smooth pan on a pivot under the pedestal; J1 and J2 rosettes for reach; J3 a smooth friction joint on a TPU ring for fine tilt. Every tilt axis stays horizontal for any pan, so the horizon stays level without a roll joint (row). |
+| 6 | The torque spec could not be applied, and normal tightening overloaded the inserts and washers. | Every joint is a spring stop (§3): the shoulder of an ISO 7379 screw lands on the brass insert, so any extra torque closes a steel and brass loop. The PETG only sees the force of a disc-spring stack whose compression is set by geometry. The spec is "turn until it stops". |
 
-Axes stay as now: Z up, origin on the column axis at the collar bottom, +Y is the side the arm leaves from.
-Assumption: +Y points away from the monitor, so the seam screw heads (−Y face) face the monitor and stay out of sight. Mirror in Y if the user wants it the other way.
+Axes: Z up, origin on the column axis at the collar bottom. +Y points away from the monitor (the column stands behind the monitor), so the camera's lens looks toward −Y, over the monitor, at the user.
 
 ## 1. Product concept and form language
 
 ### 1.1 The idea
 
-One device, not a kit of blocks. A PETG **collar** grips the column. Its top is one flat surface that runs from the ring into a **mount face** on a cantilevered pad. A three-joint **arm** stands on that face. The arm ends in a **head** with the same mount face. Every accessory has the same **foot**. Foot and face have the same 40 × 40 soft-square plan, so stacked parts line up edge to edge.
+One device on the column: a collar, a turned pedestal that pans on the collar's back, two links, and a head that is also the camera platform. Four identical knobs. No visible nut, no screw head on the front. The seam stops enter from the back.
 
-The look follows machined camera hardware (Falcam, SmallRig, Peak Design) and Apple's soft-solid products: flat datum faces, every outer edge a curvature-continuous (G2) roll, a shadow line where two volumes meet, no visible nuts, few visible heads, a turned knob with an elliptic crown at each joint. This is our reading of those products, not a sourced spec.
+The look follows machined camera hardware (turned bodies with milled flats, as on Falcam and SmallRig parts) and soft-solid products (one continuous surface per part). Milled flats, bores and the seam are crisp cut features with a 0.4 mm lead-in. Everything else is one G2 surface. This is our reading of those products, not a sourced spec.
 
-### 1.2 Named curves and surfaces (build123d 0.11)
+### 1.2 Curves and surfaces (build123d 0.11.1)
 
-All signatures below were checked against the installed 0.11.1.
-
-| Curve or surface | Where | How in 0.11 | Why |
+| Curve or surface | Where | How | Why |
 | --- | --- | --- | --- |
-| **Soft outline**: lines + quintic Bezier corners, 3 control points on each side | Every plan: collar deck and ring, mount face, foot, plates, links, walls | `form.soft_outline` (ported from `~/Projects/macropad/cad/macropad_case/solids.py`, handles 0.6/0.2 of setback) | Curvature is zero where the corner meets a side: G2. Smallest corner radius is 0.47 × setback, which bounds the roll a skin can carry. |
-| **G2 blend** between two given curves | Link waist into its end circles, knuckle circle into its sides, knob wall into its crown, skin rolls into a parabolic wall | `form.g2_blend`: quintic P0..P5, h = 5·a²·κ/4 at both ends | Matches position, tangent and curvature. Works for line (κ 0), circle (1/R), ellipse and parabola. |
-| **G2 skin**: one edge profile swept round a G2 outline, closed by planar caps and sewn | Every outer body | `form.g2_skin(outline, height, bottom, top, bulge)`: `sweep` (corrected Frenet), `BRepBuilderAPI_Sewing`, `BRepLib.OrientClosedSolid` | No boolean and no OCC fillet touches the outer surface, so every join is G2 by construction. Measured on the real faces (§6.5). |
-| **Edge rules**: `Roll(setback)` and `BedLead(leg, rise)` | Top and bottom of every skin | quintic corner; 45° line then a G2 blend | A roll on a bed edge would overhang. The bed lead prints at 45° and turns G2 into the wall. |
-| **Parabolic wall** (a conic) | Camera plates, 0.25 bulge | quadratic Bezier wall, rolls blended G2 onto it | The plate walls are not straight extrusions. The collar walls stay straight: its seam faces are walls of the same skin, and a bulge there closed the seam at 1.2 instead of 2.0. |
-| **Knuckle outline**: circle, G2 blends, straight sides, G2 buried corners | `arm_base` upright, `arm_head` knuckle | `arm.knuckle_outline` | Replaces the teardrop knuckle of v0.4 (§9). Sides are vertical in print, so nothing overhangs. |
-| **Quintic ogee loft** | `arm_head` from knuckle to MF, `post` column into its MF | `loft` of soft outlines 1 mm apart; width law = smoothstep, then the inset of a G2 bed lead or roll | Reads turned. Dense smooth sections keep the B-spline from overshooting. |
-| **Elliptic arcs** (exact conics in STEP) | Knob crown (a = 11, b = 3), carriage-bolt dome | `EllipticalCenterArc` | The second-order curves the user asked for. |
-| **Hirth rosette**, 24 teeth, 90° included | Every arm joint | One tooth = `loft([V-triangle face at r_out, Vertex(axis point)])`, trimmed r 5–13 | Teeth converge on the axis, so all faces are planes. |
+| **Turtle of conics** | Collar plan, pedestal profile, head outline | `form.Turtle`: lines, circular arcs, quarter ellipses that start at a vertex, each beginning where and how the last ended (G1). `soft(trim)` replaces up to `trim` at every join with a quintic that matches both curvatures. | Most of each curve stays an exact conic; every join is G2. The curvature jump at every join is a row (≤ 1e-3 /mm; measured ~1e-14). |
+| **G2 blend** | Every turtle join, link waist, knob crown | `form.g2_blend`: quintic P0..P5, h = 5·a²·κ/4 at both ends | Matches position, tangent and curvature: line, circle, ellipse. |
+| **G2 skin** | Collar, links, head | `form.g2_skin(outline, height, bottom, top, bulge)`: one edge profile swept round a G2 plan and sewn | No boolean or OCC fillet touches the outer surface. |
+| **Parabolic wall** (a conic) | Collar | `bulge` 2.0 mm on a 30 mm wall | A barrel you can see. Its slope at the rolls is 15° from vertical, so the print side has no overhang. |
+| **Turned profile** | Pedestal | `form.revolved`: one 360° revolve; the STEP round trip is a row | A ball (r 16.6), a circular waist (r 4), a quarter-ellipse flare (13 × 5), an elliptic foot shoulder (4 × 3), a 47° bed lead. |
+| **Knob** | 4 knobs | two 180° revolve halves fused, elliptic crown a 11 × b 3, 24 flutes | One 360° revolve of the crown blend read back from STEP invalid in v0.5. |
+| **Hirth rosette**, 24 teeth, 90° | J1, J2 | One tooth = `loft([V-triangle face, Vertex(axis point)])`, trimmed r 7.7–13 | All flank faces are planes. |
 
-Rules that keep STEP and 3MF valid:
+Rules that keep STEP and 3MF valid: never `offset()` a sketch with a Bezier; no OCC fillet on an outer edge; a roll must be smaller than the outline's smallest convex radius (a row); a closed turtle path starts at a corner, not between two collinear lines (the sweep fails there); after every part: valid, one solid, STEP volume within 0.5 %, 3MF within 1 %.
 
-- Never call `offset()` on a sketch that holds a Bezier. Rebuild an outline from its own parameters at the new size. Offsetting the column profile (circular arcs) is fine.
-- No OCC fillets or chamfers on outer edges. The outer surface comes from the skin; holes, pockets and rosettes are cut after.
-- A roll must be smaller than the outline's smallest corner radius, or the sweep folds and `g2_skin` raises.
-- After every part: `is_valid`, one solid, STEP round-trip volume within 0.5 %, 3MF volume within 1 %.
-
-### 1.3 Edge vocabulary (the same on every printed part)
+### 1.3 Edge vocabulary
 
 | Edge | Treatment |
 | --- | --- |
-| Outer edge off the bed | G2 roll: collar 4.0 (deck underside), 3.5 (ring bottom); plates 3.0; foot top 2.5; knuckle and link faces 1.2 (the rosette leaves 1.5 mm of flat face) |
-| Outer edge on the print bed | 45° lead (collar 1.0, plates and feet 0.6, link 0.6), then a G2 blend 1.5–3.0 up the wall. The only crease on the outer surface. |
-| Where two volumes meet | A shadow line: the collar deck overhangs its ring by 1.0; the head ogee leaves a 0.6 shoulder over its knuckle; uprights and walls stand in their foot |
-| Hole and slot mouths | 0.4 × 45° lead-in |
-| Seam | Each shell is its own skin, so the seam faces carry the same rolls; the seam corners in plan are G2 (setback 9.5) |
-
-### 1.4 How the parts read as one product
-
-- The collar deck top and its mount face are **one flat plane**. The plan runs ring → G2 taper → pad with no step.
-- The deck (z 16–40) sits on a ring set 1 mm inside it. The shadow groove runs all round, and the pad cantilevers off the ring on the deck alone.
-- No ears. The seam screws run inside the wall.
-- Foot plan = mount-face plan. Arm base on the collar, and a plate on the head, sit edge-aligned.
-- Base and head knuckles share one outline. Links share one dog-bone plan. Every knob is the same part.
-- The collar port nut slides in from the bore and hides behind the liner.
+| Outer edge off the bed | G2 roll: collar bottom 6.0; head caps 2.0; link faces 1.2 |
+| Outer edge on the print bed | 45° lead (collar 1.0, head 0.8, link 0.6, pedestal 1.2 at 47°), then a G2 blend into the wall. The only crease on the outer surface. |
+| Milled flats, bores, spot faces | Crisp cut, 0.4 × 45° lead-in at hole mouths |
+| Seam | One straight split, 2.0 mm open, 1.54 mm at liner contact |
+| Seam counterbore mouths | Filled by flush TPU caps cut from the collar's own skin |
 
 ## 2. Assembly architecture
 
@@ -77,272 +55,211 @@ Rules that keep STEP and 3MF valid:
 
 | Part | Material | What it is |
 | --- | --- | --- |
-| `collar_front` | PETG | Front shell: deck and inset ring skins. Seam screw counterbores (teardrop roof in print). |
-| `collar_back` | PETG | Back shell: deck with taper and MF pad, inset ring. 4 seam inserts in its seam face, 4 MF inserts, the 1/4" port nut channel from the bore. |
-| `liner_front`, `liner_back` | TPU 95A | 2.0 mm grip liners with 45° V ribs. They snap behind the shell lips and cover the port nut's slot mouth. |
-| `arm_base` | PETG | Foot skin (4 × M3 to the MF) and the knuckle upright with joint J1. |
-| `arm_link` × 2 | PETG | Same part twice. Dog-bone skin, 70 mm pitch, 10 mm thick, a rosette at each end. The second one is turned 180° about its long axis. |
-| `arm_head` | PETG | Knuckle J3 and an ogee loft that rises into an MF. |
-| `knob` × 3 | PETG | Turned knob with an elliptic crown, holding an M6 nut. |
-| `zve10` | PETG | Hero payload plate. Foot to the head MF, 24 mm camera slot. |
-| `cam_plate`, `phone`, `gopro`, `post` | PETG | Accessories on the shared foot and MF. |
+| `collar_front` | PETG | Front shell. Four ruthex M5 inserts in its seam faces. |
+| `collar_back` | PETG | Back shell with the half-ellipse back. Four seam counterbores from the back; the pan pivot bore, spot face and knob recess under the back. |
+| `seam_cap_1..4` | TPU 95A | Covers for the seam counterbores, cut from the collar's skin: flush, a 0.1 mm press fit, 1.4 mm clear of the screw head over the whole seam travel. |
+| `liner_front`, `liner_back` | TPU 95A | 2.0 mm grip liners with 45° V ribs, behind the shell lips. |
+| `arm_base` | PETG | Turned pedestal. Pivot face with an M6 insert; a ball with the J1 rosette flat (+X) and the J1 knob flat (−X). |
+| `arm_link` | PETG | J1 to J2. Dog-bone skin, 70 mm pitch, 15.06 thick, rosettes and M6 inserts at both ends. |
+| `arm_tip` | PETG | J2 to J3. The same skin: end A takes the J2 knob, end B is a flat friction face with the J3 insert. |
+| `arm_head` | PETG | J3 block (flat friction face, knob spot face) sweeping into the camera platform, 31 wide. |
+| `j3_ring` | TPU 95A | 1.0 mm friction ring, Ø26 / Ø8.8. |
+| `knob` × 4 | PETG | Turned, elliptic crown; holds a shoulder screw head (melted in). |
 | `coupon_*` | as parent | Slices of the real parts (§6.4). |
 
 ### 2.2 Bought parts (modeled as solids in the assembly)
 
-M3 ISO 4762 screws with ISO 7089 washers into ruthex RX-M3x5.7 heat-set inserts. DIN 603 M6 carriage bolts, ISO 7093-1 M6 washers, ISO 4032 M6 nuts. 1/4"-20 hex nuts (ASME B18.2.2) in the MF ports. One 1/4"-20 socket cap camera screw (ASME B18.3) on an ISO 7093-1 washer. A Sony ZV-E10 envelope (115.2 × 64.2 × 44.8 mm, Sony help guide). The bought GoPro buckle, phone clamp and ball head are not modeled.
+ISO 7379 shoulder screws (M5 6.5 × 35, M6 8 × 20 and 8 × 40), DIN 2093 disc springs (B 16 × 8.2 × 0.6 and C 14 × 7.2 × 0.35), ISO 7089 M8 washers, ruthex RX-M5x9.5 and RX-M6x12.7 heat-set inserts, a 1/4"-20 × 1/2" ASME B18.3 camera screw on an ISO 7093-1 M6 washer, and the Sony ZV-E10 envelope (115.2 × 64.2 × 44.8, Sony help guide) with an estimated SELP1650 lens.
 
 ### 2.3 What bolts to what
 
 ```
 column
-  └─ liner_front / liner_back          (TPU, friction)
-       └─ collar_front ══4× M3 seam into inserts══ collar_back
-                                                     └─ MF ── 4× M3 into inserts ── arm_base
-                                                                                    └─ J1 ── arm_link
-                                                                                               └─ J2 ── arm_link (flipped)
-                                                                                                          └─ J3 ── arm_head
-                                                                                                                    └─ MF ── 4× M3 ── zve10
-                                                                                                                                       └─ 1/4"-20 ── ZV-E10
+  └─ liner_front / liner_back                (TPU, friction)
+       └─ collar_back ══4 seam stops══ collar_front     (M5 shoulder, 6 C springs, M5 insert)
+             └─ pan pivot ── arm_base                   (knob under the collar, M6 insert in the pedestal)
+                               └─ J1 rosette ── arm_link            (knob on the pedestal's −X flat)
+                                                 └─ J2 rosette ── arm_tip        (knob on arm_tip)
+                                                                   └─ J3 ring ── arm_head   (knob on the head)
+                                                                                  └─ 1/4"-20 ── ZV-E10
 ```
 
 ### 2.4 Load path, camera to column
 
-1. Camera weight goes through the 1/4"-20 camera screw and its 18 mm washer into the `zve10` plate.
-2. The plate bears flat on the head MF. Four M3 screws pull it down into inserts.
-3. The head transfers moment through J3. The rosette teeth lock it. The carriage bolt preload keeps the teeth engaged.
-4. Links carry bending along their layers to J2 and J1.
-5. `arm_base` bears on the collar MF with 4 × M3.
-6. The pad is a cantilever on the deck. It prints face down, so bending runs along the layers into the ring.
-7. The ring presses the TPU liner onto the column. Four seam screws make the normal force. Friction holds the device up.
+1. Camera weight through the 1/4"-20 screw and its 18 mm washer into the head platform.
+2. The head turns on J3 only by overcoming ring friction. The J3 stop presses the ring.
+3. Links carry bending along their layers to J2 and J1; the rosettes lock by their stop force.
+4. The pedestal carries the moment through its neck (across layers, the weakest section, checked) into the pivot face. The pivot stop holds it down: no lift-off at 2×.
+5. The collar's back carries it into the ring round the column. Four seam stops press the liners onto the column; friction holds the device up.
 
-Design load: 1.0 kg payload (estimated). Worst lever from J1 to the camera: both links level (140) plus the deck offset (48.5) = 188.5 mm, derived in code. Sustained moment at J1 1.85 Nm. Peak checks use 2×.
+Design load: 1.0 kg payload (estimated; the ZV-E10 is 343 g with battery). Worst pose: both links level. Lever from J1 to the camera's mass: 2 × 70 plus the head offset, derived in code. Peak checks use 2×.
 
 ### 2.5 Assembly order (the checks use these steps)
 
-1. Press the 8 inserts into `collar_back` (4 in the seam faces, 4 in the MF) with a soldering iron. Hold `collar_back` MF face down, slide the 1/4" nut in from the bore, turn the shell over: the nut drops 1.5 mm into its pocket and cannot slide back out.
-2. Snap the liners into both shells. The back liner covers the nut's slot mouth.
-3. Put the halves round the column. Fit 4 × M3 × 30 seam screws with washers from the −Y face. Tighten crosswise to 0.05 Nm (estimated; confirm on the coupon). The seam must stay open.
-4. Fix `arm_base` to the MF with 4 × M3 × 10 and washers from above, before J1 is built, so the key can reach.
-5. Press the 4 head inserts, drop the head port nut in the same way (head MF face down, then upright). Build J1, J2 and J3: carriage bolt through (square neck in its square hole), washer, knob.
-6. Fix `zve10` to the head MF with 4 × M3 × 10 and washers. Then the camera, 1/4" screw and washer from below.
+1. Press the inserts with a soldering iron: four M5 into `collar_front`'s seam faces; M6 into the `arm_base` pivot face, both ends of `arm_link`, end B of `arm_tip`. Melt each M6 shoulder screw's knurled head into a knob the same way.
+2. Snap the liners into both shells.
+3. Close the shells round the column. At each seam stop, from the back: seat washer, six C springs (alternating), M5 shoulder screw. Turn with a 3 mm key until it stops. Press a TPU cap into each hole.
+4. Set the pedestal on the collar's back. From below: seat washer, five B springs, head washer, then the knob with its screw. Turn until it stops.
+5. Build J1, J2 and J3 the same way, with the TPU ring in J3. Knobs on −X (J1, on the pedestal), −X (J2, on arm_tip), +X (J3, on the head).
+6. Camera on the platform, then the 1/4"-20 screw and its washer from below.
 
-## 3. Fastener schedule
+## 3. Fastener schedule: spring stops
 
-### 3.1 Bought dimensions and holes
+### 3.1 Bought dimensions
 
-Fit rule: a pocket is the max part size plus the fit shown. A pocket is a press or slide fit, never the PETG clearance 0.30.
+Fit rule: a pocket is the max part size plus the fit shown. A press or melt fit is under size on purpose.
 
-| Part | Published size (max) | Source | Pocket / hole | Fit |
-| --- | --- | --- | --- | --- |
-| M3 heat-set insert ruthex RX-M3x5.7 | knurl 4.6, hole 4.0, length 5.7, min wall 1.6 | 3djake ruthex table (columns unlabeled: **confirm on the coupon**) | Ø4.0 × 6.4 (0.2 sink + 5.7 + 0.5), then the tip room at Ø3.4 | maker's hole |
-| M6 nut ISO 4032 | s 9.78–10.00, m 4.90–5.20 | Wermac; HB&H | 10.20 AF × 5.50 in the knob | +0.20 / +0.30 |
-| 1/4"-20 nut ASME B18.2.2 | AF 10.87–11.13, t 5.38–5.74 | amesweb table | 11.45 AF × (6.05 + 1.5 drop) | +0.32 / +0.31 |
-| M3 ISO 4762 head | dk 5.32–5.68, k 3.00, key 2.5 | Westfield | With washer: Ø7.4 × 3.8 | +0.4 dia, +0.3 deep |
-| M3 washer ISO 7089 | 3.2 / 7.0 / 0.5 | Westfield | Inside the Ø7.4 counterbore | |
-| M6 carriage bolt DIN 603 | dk 15.45–16.55, k 3.88, neck 6.48 square × 4.6 | Fabory DIN 603 page; Aspen Fasteners | Square hole 6.78 × 4.9, a corner up | +0.3 |
-| M6 washer ISO 7093-1 | 6.4 / 18 / 1.6 | fasten.it ISO 7093-1 table; Keller & Kalmbach | Sits on the knuckle face | |
-| Clearance ISO 273 medium | M3 3.4, M6 6.6 | iso.org; chart | 3.4, 6.6; 1/4" 6.6 | |
-| 1/4"-20 SHCS ASME B18.3 head | Ø9.53 × 6.35 | Westfield | On an ISO 7093 washer in an 18.4 × 8.3 slot from below | |
-| ZV-E10 tripod screw | thread depth < 5.5 | Sony help guide | screw engages 4.0–5.5 | |
+| Part | Published size | Source | Hole / pocket |
+| --- | --- | --- | --- |
+| ISO 7379 M6 shoulder screw | shoulder 8 f9, thread M6 × 11.25 (b max), head 13 × 5.5, key 4; l1 0/+0.25 | fasten.it ISO 7379; Elesa, Misumi sheets | shoulder bore 8.4; head melted into a 12.4 knob pocket |
+| ISO 7379 M5 shoulder screw | shoulder 6.5, thread M5 × 9.75, head 10 × 4.5, key 3 | same | shoulder bore 6.9; 16.4 counterbore |
+| DIN 2093 B 16 × 8.2 × 0.6 | h0 0.45; 172 / 304 / 410 / 503 N at 0.25 / 0.5 / 0.75 / 1.0 h0 | fasten.it DIN 2093 (now DIN EN 16983) | in a 16.4 spot face |
+| DIN 2093 C 14 × 7.2 × 0.35 | h0 0.45; 68 / 106 / 123 / 131 N | same | in the 16.4 counterbore |
+| ISO 7089 M8 washer | 8.4 / 16 / 1.6 | Westfield | seat and head washers |
+| ruthex RX-M6x12.7 | knurl 8.7, hole 8.0, L 12.7, wall min 3.3 | 3djake ruthex table (columns unlabeled: confirm on the coupon) | 8.0 × 13.4 blind |
+| ruthex RX-M5x9.5 | knurl 7.1, hole 6.4, L 9.5, wall min 2.6 | 3djake ruthex table; RS PRO M5 sheet agrees | 6.4 × 10.5 blind, round |
+| 1/4"-20 SHCS ASME B18.3 | head 9.53 × 6.35 | Westfield | 6.6 hole, 18.4 spot face |
+| ISO 7093-1 M6 washer | 6.4 / 18 / 1.6 | fasten.it; Keller & Kalmbach | under the camera screw |
+| ZV-E10 tripod socket | thread depth < 5.5 | Sony help guide | screw engages 4.85–5.35 |
 
-Every value above is in `params.py` with its source in a comment. Values not from a source keep `# estimated:`.
+Every value is in `params.py` with its source. Values without a source carry `# estimated:`.
 
-### 3.2 Stack rule
+### 3.2 The stop rule
 
 ```
-grip      = under the head to the load face (washer included), measured by rays on the solids
-L         = shortest stock length >= grip_open + engage_need + tol        tol: M3 0.3, M6 0.42, 1/4" 0.25 (estimated)
-engage    = into an insert: 0.2 sink + 1.5 d (4.5); into a nut: m_max + 2 pitches
-tip room  = a design parameter (seam_tip_room, knob_tip_room, the insert hole, the camera socket),
-            never derived from L, so a longer screw fails
-rows      : engagement (short case L - tol, open state) >= engage
-            tip clear  (long case L + tol, closed state) <= tip room - 0.5
-            head below the surface >= 0.3 (rim ray runs away from anything standing on the foot)
-            the measured grip equals the design grip within 0.05
+l1        shoulder length, a stock length
+above     = seat washer + n · (spring free height − design deflection) + head washer
+clamped   = l1 − above            design distance from the PETG seat to the insert top
+parts are sized so the measured seat-to-insert distance is `clamped` (a row, by rays)
+deflection(clamped, l1) = free − (l1 − clamped − washers) / n
+band      least force: l1 + 0.25 and the thinnest stack; most force: l1 and the thickest
+rows      spring deflection 0.15–0.95 h0 over the band; least force ≥ the need;
+          most force: insert pull-out ≤ 1.10 MPa, seat washer bearing ≤ 3.85 MPa (measured seat);
+          shoulder end lands on brass (no PETG in its footprint); thread in the insert ≥ 1.5 d;
+          hole past the thread tip ≥ 0.3 (measured); thread left when backed out to re-index ≥ 0.8 d
 ```
 
-`state` is `open` (as modeled; the seam is 2.0 mm open, the rosette is lifted 2.2 to index) or `closed`.
+Printed stack tolerance ±0.15 mm (estimated), ±0.25 for J3 (ring ±0.1 too).
 
-### 3.3 Schedule (from the code; the README BOM is generated)
+### 3.3 Schedule (from the build)
 
-| Joint | Qty | Screw | Grip | Into | Preload (torque, K 0.2 estimated) | Bearing |
+| Stop | Qty | Screw | Springs | Into | Force band (least .. most) | Holds |
 | --- | --- | --- | --- | --- | --- | --- |
-| Collar seam | 4 | ISO 4762 M3 × 30 + ISO 7089 washer | 23.7 open, 21.7 closed | insert in the back seam face, tip room 10 | 80 N (0.05 Nm) | washer 29.4 mm² → 2.7 MPa; insert shear 0.97 MPa |
-| Foot to MF | 4 per foot | ISO 4762 M3 × 10 + ISO 7089 washer | 4.7 (4.2 PETG + washer) | MF insert | 80 N (0.05 Nm) | washer 2.7 MPa; insert 0.97 MPa |
-| Arm joints J1–J3 | 3 | DIN 603 M6 × 35 | 21.7 closed, 23.9 open | M6 nut in the knob, ISO 7093 washer | 400 N (0.48 Nm by hand) | dome 141 mm² → 2.8 MPa; washer 218 mm² → 1.8 MPa |
-| Camera | 1 | 1/4"-20 × 1/2" SHCS + ISO 7093 washer | 7.6 | camera socket, 4.85–5.35 engaged (limit < 5.5) | 394 N (0.5 Nm) | washer on the slot ceiling |
-| MF 1/4" port | 1 per MF | a bought stud for a ball head (not in the hero) | | 1/4" nut, roof 6.1 | 236 N (0.3 Nm) | nut face 67.9 mm² → 3.5 MPa |
+| Seam | 4 | ISO 7379 M5 6.5 × 35 | 6 × C14 (0.75 h0 at contact) | M5 insert, front shell | 71 .. 128 N over column ±0.3, rib crush 0.6, print ±0.15 | 2× tilting couple needs 33 N each |
+| Pan pivot | 1 | ISO 7379 M6 8 × 40 | 5 × B16 (0.6 h0) | M6 insert, pedestal | 261 .. 373 N | no lift-off at 2×: 188 N |
+| J1, J2 | 2 | ISO 7379 M6 8 × 20 | 5 × B16 (0.6 h0) | M6 insert, arm_link | 263 .. 375 N | rosette at 2×: 192 N (J1), 104 N (J2) |
+| J3 | 1 | ISO 7379 M6 8 × 20 | 5 × B16 (0.5 h0) | M6 insert, arm_tip end B | 187 .. 351 N | ring friction at 2×, tilted 15°: 146 N |
+| Camera | 1 | 1/4"-20 × 1/2" SHCS + ISO 7093 washer | — | camera socket, 4.85–5.35 engaged | 787 N at 1 Nm by hand (estimated K 0.2) | washer bearing 3.61 MPa (limit 3.85) |
 
-Sustained bearing limit: 0.1 × UTS = 3.85 MPa (compression closes the layers, so the along-layer value). Insert pull-out shears the layer planes: 0.1 × 19.0 / √3 = 1.10 MPa on the knurl cylinder (π · 4.6 · 5.7 = 82 mm²). That limit is what sets the M3 preload to 80 N. The 80 N is still over the 2× foot bolt pull (62 N) and gives the seam 2.3× the 2× tilting couple.
+Sustained limits: bearing 0.1 × UTS along layers = 3.85 MPa; insert pull-out shear 0.1 × 19.0 / √3 = 1.10 MPa on the knurl cylinder. The tightest row is the insert at the most stop force: 1.08 MPa.
 
-Captive M3 nuts are gone. Their bearing face (dw 4.6 to the 3.4 hole, 7.5 mm²) could not carry more than 29 N at 3.85 MPa.
+Holding needs: rosette F ≥ (M / r_m) · tan(45° − φ), r_m 10.35, μ 0.2 (estimated). J3 friction F ≥ M / (μ r_m), μ 0.5 TPU on PETG (estimated), r_m 8.7, M = 2 × W × (lever + rise · sin 15°). Pivot F ≥ M / (foot radius − lead).
 
-### 3.4 Port nut rule
+## 4. Kinematics and interfaces
 
-`CaptiveNut(..., drop=1.5)` returns `(pocket, channel)`.
-
-- One hex corner points along `travel`, so channel width = pocket AF.
-- The pocket is 1.5 mm deeper than the channel, on the far side from the face. With the part face down the nut slides in on the seat side; turned upright it drops into the pocket and the pocket wall stops it sliding back. The check: the max nut at rest on the pocket floor moves at most 0.5 mm toward the mouth before it meets PETG.
-- Channel ceilings wider than 10 mm in print pose get a 45° gable on the far side (collar, head), or 45° strips at the seat edges where the seat is the ceiling (post).
-
-## 4. Interfaces and connectors
-
-### 4.1 Mount face standard (MF-40)
-
-| Item | Value |
-| --- | --- |
-| Plan | 40 × 40 soft square, setback 12 (foot uses the same plan) |
-| Structural | 4 × M3 heat-set inserts on a 20 mm square, 0.2 below the face |
-| Port | 1 × 1/4"-20 nut, center, roof 6.1, pocket 6.1–13.6 deep with the 1.5 drop. Insert to channel ≥ 1.6. |
-| Min depth | 1/4" tip bore floor 22.5 + 1.5 = 24 mm under the face |
-| Datum | The face is flat and is the print bed face where the part allows (collar_back, arm_head) |
-| Rotation | Feet index every 90° on the M3 square |
-
-### 4.2 Arm joints: Hirth rosette lap joints
-
-- Lap joint, 24 teeth, 90° included angle, annulus r 5.0–13.0, tips and roots truncated 0.15, flank fit 0.10. Index step 15°. Lift to re-index 2.2 mm.
-- A DIN 603 carriage bolt's dome head bears on one knuckle face; its square neck in a square hole (a corner up, so 45° roofs in any print pose) stops it turning. The knob on the other face holds an M6 nut on an ISO 7093 washer, so PETG never takes a small steel face under preload.
-- Holding: the teeth stay seated while F ≥ (M / r_m) · tan(45° − φ), r_m 9, μ 0.2 (estimated). At 2× load J1 needs 274 N; the preload is 400 N.
-- Knob: Ø28, 18.5 tall, wall into an elliptic crown (a 11, b 3) through a G2 blend, 24 grip flutes. The nut sits in a 10.2 AF pocket open at the bottom, the bolt tip in a 16 mm blind bore.
-- Chain: J1 rosette on the base +X face. link 1 on +X. link 2 flipped, back on −X. head on +X. Knobs alternate +X, −X, +X.
-
-### 4.3 Deferred, with reasons
-
-- Arca-Swiss dovetail: no published height, and it needs a clamp mechanism.
-- USB-C cable routing: no channels in the links; they would weaken the bending section.
+- **Pan**: the pedestal turns about Z on the collar's back. Loosen the knob under the collar about a turn, pan, turn until it stops. Drag with the stop set: a row reports it. Clear range in the hero pose: −30° to 30° and 150° to 195° (the arm reaches over the column, so it meets it beyond that); a raised arm pans further.
+- **J1, J2**: 24 tooth Hirth rosettes, 90° included, r 7.7–13, flank fit 0.10, 15° index. Lift 2.2 mm to re-index (the knob backs out past the springs, a row checks the thread left).
+- **J3**: flat PETG faces with a 1 mm TPU 95A ring. Smooth tilt. Holds the 2× load within ±15° of level; past that, move J2.
+- **Horizon**: every tilt axis is square to the pan axis (a row), so the horizon stays level at any pan with a vertical column.
+- **Camera**: one 1/4"-20 screw from below, 21 mm past the J3 face toward −X, clear of arm_tip, so the key reaches it with the arm built. The battery door stays free.
+- Deferred: an Arca-Swiss dovetail (no published height, needs a clamp), USB-C cable routing (the dummy-battery cable leaves the open door; no channels in the links, which would weaken them).
 
 ## 5. Strength and print plan
 
-Allowed sustained stress: 0.1 × UTS in the stress direction (PETG along layers 3.85 MPa, across 1.9). Peak (2×): 0.25 × UTS. Section rows use the payload moment as a vector in the worst pose: bending about both section axes (with the product of inertia) and twist (T / 0.208 b t², the square-bar factor), combined as von Mises.
+Allowed stress: 0.1 × UTS sustained, 0.25 × UTS peak (2×), in the stress direction (PETG along layers 38.5 MPa, across 19.0). Section rows use the payload moment as a vector: biaxial bending and twist, combined as von Mises.
 
 | Part | Print pose (bed normal, use frame) | Main load | Stress vs layers | Perimeters / top-bottom / infill | Notes |
 | --- | --- | --- | --- | --- | --- |
-| collar_front | top face down (0,0,+1) | Seam hoop tension | Along | 5 / 5 / 40 % gyroid | Counterbores horizontal: teardrop roof. Bed lead on the top face. |
-| collar_back | top face down (0,0,+1) | Pad cantilever + hoop | Along (spine root row) | 5 / 5 / 50 % gyroid | MF on the bed. The pad underside and the shadow groove face up. |
-| liner_front/back | axis vertical (0,0,−1) | Compression | n/a | all perimeters (2 mm), 25 mm/s | 45° V ribs. |
-| arm_base | foot down (0,0,−1) | Moment at the upright root | **Across**, checked at 1.9 MPa | 6 / 6 / 60 % | Upright faces vertical; square hole a corner up. |
-| arm_link | on its +X face (+1,0,0) | Waist bending | Along | 6 / 5 / 50 % | Bed lead on the +X face; the washer sits on that face, no recess (an 18 mm recess would be a 9 mm cantilever ceiling). |
-| arm_head | MF down (0,0,+1) | J3 moment into the MF | Across at the neck | 6 / 6 / 60 % | The ogee narrows upward in print, so nothing overhangs. |
-| knob | base down (0,0,−1) | Hand torque | Along | 4 / 5 / 40 % | |
-| zve10, cam_plate | deck face down (0,0,+1) | Plate bending | Along | 4 / 5 / 40 % | The 18.4 washer slots open upward, so no wide ceiling. |
-| post | foot down | Bending | Across | 6 / 6 / 60 % | The ogee keeps its corners under 45°. |
-| phone, gopro | foot down | Light | — | 4 / 5 / 40 % | |
+| collar_front, collar_back | top face down (0,0,+1) | Clamp hoop, back moment | Along | 5 / 5 / 40 % gyroid | Shoulder bores horizontal: teardrop roofs; the 16.4 seam counterbores a teardrop cut flat at the circle (a 6.8 bridge). M5 insert holes stay round (6.4 prints round). |
+| liner_front/back | axis vertical (0,0,−1) | Compression | n/a | all perimeters, 25 mm/s | |
+| arm_base | foot down (0,0,−1) | Moment at the neck | **Across**, checked at 1.9 MPa: 1.05 sustained | 6 / 6 / 60 % | Ball starts at latitude −40° (50° from down-facing). J1 bores horizontal: teardrops. |
+| arm_link, arm_tip | on the +X face (+1,0,0) | Waist bending | Along | 6 / 5 / 50 % | Inserts and bores vertical. The spot face is a 4 mm annular bridge. |
+| arm_head | on its +Y face (0,+1,0) | J3 block, platform cantilever | Along | 6 / 6 / 60 % | Bores teardrop toward −Y. |
+| knob | rim down (0,0,−1) | Hand torque | Along | 4 / 5 / 40 % | 45° ring over the head pocket: the flat ceiling bridges 9.6. |
+| j3_ring | flat | Compression | n/a | solid | TPU 95A. |
 
-Wall minimum: PETG 1.5 (1.6 round an insert knurl, the maker's figure), TPU 1.2. Measured with solid probes. Horizontal holes ≥ 5 mm get a 45° teardrop.
+Wall minimum: PETG 1.5, TPU 1.2, the maker's wall round an insert knurl (M5 2.6, M6 3.3), measured with solid probes. Horizontal holes 6.5 mm and over get a 45° teardrop.
 
-Collar sizing (all derived in code from `params.py`):
+Collar sizing (derived in `params.py`):
 
 ```
 bore offset    = fit 0.25 + rib_h 0.8 + liner_t 2.0 = 3.05      (bore 46.3 × 61.6, r 15.05)
-seam_gap       = 2·fit + 2·rib_h − 0.1 = 2.0
-seam x         = bore half-width + max(1.5 + 3.4/2, 1.6 + 4.6/2) = ±27.05
-outer half-w   = max(seam x + 7.4/2 + 1.8 + 1.0,  seam x + 4.6/2 + 1.6 + 4.55) + 1.0 (ring inset) = 36.5 → 73 wide
-                 (the 4.55 lets the ring's G2 seam corner dip only 0.16 mm where the insert wall meets the seam face)
-outer half-d   = 35 → front 35; back pad to y 77
-deck           = z 16–40 on the full plan; ring z 0–20 set 1.0 inside, its back at y 37 behind the bore
+seam_gap       = 2·fit + 2·rib_h − 0.1 = 2.0 open; 1.54 at liner contact (the hero)
+seam x         = bore half-width + max(1.5 + 6.9/2, 2.6 + 7.1/2) = ±29.3
+outer half-w   = seam x + 16.4/2 + 1.5, to 0.5 = 39.5 → 79 wide
+plan           = front y −36, sides to y 36, half-ellipse back to y 74 (semi-axes 39.5 × 38)
+pivot          = y 52, the pedestal foot r 19.7 clears the bore
 ```
-
-Grip math (estimated μ 0.5 TPU on aluminium): 4 × 80 N preload. The 2× tilting couple is 139 N against 320 N of seam clamp.
 
 ## 6. Verification plan
 
-Every check below runs at build time (`python -m holder` exits 1 before export on any FAIL) and again in pytest. Each new check has a case that must fail.
+Every check runs at build time (`python -m holder` exits 1 before export on any FAIL) and again in pytest. Each new check has a case that must fail.
 
-### 6.1 Port nut travel and stop
+### 6.1 Stops
+§3.2 rows for each placed stop, the stack measured by rays on the placed solids. Negative tests: a stack 2 mm too thick flattens the springs; PETG over an insert fails "shoulder on brass"; a through insert hole fails the blind-depth row; a thinned wall fails the maker's wall.
 
-For each port nut: the max nut (s_max, m_max, a real hex prism) swept from past the mouth to the seat meets ≤ 1e-6 mm³ of PETG; the channel is ≥ s_max + 0.15 wide (rays on real faces); the nut at rest on the pocket floor slides ≤ 0.5 mm toward the mouth before it meets PETG (bisection on the real part). Negative tests: the old corner-on-±X pocket fails travel; a pocket without the drop fails the stop.
-
-### 6.2 Screw stacks and tip clearance
-
-Measured by rays on the placed solids for every seam, foot, joint and camera screw (§3.2). Tip rooms are design parameters, so a longer screw fails. The foot rim ray runs outward from the foot centre and a row proves it lands on the foot top. A seam screw 5 mm too long meets the back shell (test).
+### 6.2 Camera
+Grip by rays; engagement on the short screw, tip depth on the long screw; washer bearing at 1 Nm by hand; the door and its 30 mm swing room clear of every part (a plate under it is caught, test).
 
 ### 6.3 Assembly clash at build time
-
-`assembly(spec)` holds every printed and bought solid. Pairs whose boxes touch need ≤ 1e-6 mm³, except a screw with its own insert or nut, and an insert with its host (the knurl melts into the hole wall). Also: liner rib tips 0.25 ± 0.02 off the column; seam gap ≥ 1.95; rosette pairs 0 clash and a 0.05–0.15 flank gap; each joint swept 0–360° in 15° steps with the hero and folded poses inside the clear range; a key rod (key + 1 mm, 120 mm) from every head misses every part present at its step.
+`assembly(spec)` holds every printed and bought solid. Pairs whose boxes touch share ≤ 1e-6 mm³, except a screw in its own insert, an insert in its host, and a screw head in its knob. Liner rib tips 0.02 ± 0.01 off the column at contact; seam gap at contact ≥ 1.49; rosettes 0 clash and a 0.05–0.15 flank gap; the ring 0–0.03 off both J3 faces. Each joint and the pan swept through 360° in 15° steps with the hero and folded poses inside the clear range. A key rod (key + 1 mm, 120 mm) from each keyed screw misses every part present at its step; 10 mm finger room round the outer 60 % of every knob (round the exposed part of the recessed pivot knob).
 
 ### 6.4 Coupons cut from the real parts
+- `coupon_collar_front/back`, `coupon_liner_front/back`: `part & slab(z 4–19.5)` with the lower seam stops (z 10), checked against the measured column: bore 3.05 ± 0.01 off it, rib tips 0.25 ± 0.02.
+- `coupon_rosette_base`: the pedestal's J1 flat with its teeth and shoulder bore (x 0–7.5). `coupon_rosette_link`: arm_link end A with its teeth and M6 insert. Build J1 on them with a knob and springs: it tests the teeth, the insert, the stop and the lift.
 
-- `coupon_collar_front/back`, `coupon_liner_front/back`: `part & slab(z 4–15)`, with the z 10 seam screws. Checked against the measured column solid, not the collar: the shell bore sits 3.05 ± 0.01 off it, the liner rib tips 0.25 ± 0.02.
-- `coupon_mf`: the collar MF region with the x +10 inserts and the 1/4" channel. It proves insert pressing, nut travel and the drop.
-- `coupon_rosette_base`, `coupon_rosette_link`: knuckle discs with teeth. The base disc starts past the 1.2 face roll, so it prints on a flat face.
-
-### 6.5 Print, form and strength checks per part
-
-- Overhang: sample face normals on a UV grid in print pose. Fail any down-facing area steeper than 45° (0.5° tolerance) above z 0.05, unless it is a flat ceiling within 5 mm of its outer wire.
-- Surface continuity on the real faces: for every edge of every skin, sample 3 points, read both faces' normals and their normal curvature across the edge (`BRepLProp_SLProps`). Normal step ≤ 0.5°, curvature step ≤ 2e-3 /mm. Only the bed-lead crease (and, for a loft, its fused cap) is exempt. A chamfered box fails.
-- Plan and profile wires: curvature jump ≤ 1e-3 /mm at every join.
-- Bearing: each washer, dome head and nut face is a 0.05 mm probe sunk into its real seat; the area is the PETG it meets. σ = preload / area ≤ 3.85 MPa. Insert pull-out shear ≤ 1.10 MPa.
-- Preload needs: rosette preload for the 2× moment at J1–J3; the 2× foot bolt pull under the M3 preload; the 2× collar tilting couple under the seam clamp.
-- Section stress (§5) at the collar spine root, arm_base upright root, both link waists, the head neck, the zve10 shoulder and the post column.
+### 6.5 Print, form and strength per part
+- Overhang on a UV grid in print pose: no down-facing area steeper than 45° (0.5° tolerance) unless it is a flat ceiling within 5 mm of its outer wire.
+- Surface continuity on the finished part (§0 row 3). Plan and profile curvature jumps ≤ 1e-3 /mm. Smallest convex plan radius over the roll.
+- Section stress at the collar back, pedestal neck, link waist, tip waist, head block and platform root.
 
 ### 6.6 Install limit
-
-The hero reaches back over the column. The build measures the lowest point of anything that swings (links, head, plate, camera) inside the column footprint grown by 5 mm, and checks the modeled column top (`column_top_z`, 100 mm above the collar bottom) is below it. README states the limit. A test shows a 260 mm column hits the arm.
+The build measures the lowest point of anything above the collar inside the column footprint grown by 3 mm, against `column_top_z` (100 mm modeled). README states the limit. A test shows a 400 mm column hits the arm.
 
 ### 6.7 BOM from code
-
-`python -m holder --bom` prints it. README holds it between `<!-- bom:start -->` and `<!-- bom:end -->`. Pytest asserts the block equals the generated text.
+`python -m holder --bom` prints it; README holds it between markers; pytest compares.
 
 ### 6.8 Renders
-
-- `tools/render/meshes.py` (uv) tessellates every solid at 0.02 mm in its assembly pose and writes OBJ with the CAD surface's own normal at every node (`BRepLib_ToolTriangulatedShape.ComputeNormals`). Blender would rebuild normals from OCCT's long sliver triangles and the zebra bands would jitter on a wall that is exact in the CAD (normal constant to 1e-17 along the collar front). `tools/render/scene.py` runs in Blender 5.2: AgX, three area lights, a shadow catcher, 96 samples with denoise.
-- Views: hero 3/4 of the full assembly on the column, side, top (plan), J1 close-up, collar, zebra on the shells and on the head, accessories.
-- The pictures are judged on the curves and the joins. They show a design not yet printed.
-- `exports/report.json` holds every check row and a hash of `src/`.
+`tools/render/meshes.py` tessellates every solid at 0.02 mm with the CAD surface's own normals; `tools/render/scene.py` (Blender 5.2) renders: hero 3/4, side, front, top plan, J2 detail, collar, a J2/J3 cutaway (`section`), zebra on the shells, the head and the pedestal, and every printed part in print pose (`parts`). The pictures show a design not yet printed. `exports/report.json` holds every check row and a hash of `src/`.
 
 ## 7. Scope
 
-Done in v0.4.0: steps 1–8 of the first brief (params, form, MF-40, collar, arm, assembly, accessories, renders, README). Done in v0.5.0: the G2 skin, inserts, carriage bolts, port nut drop, bearing and preload rows, biaxial stress, the install limit, coupon fit against the column. Not made: `cable_clip` (optional).
-
-Do not push. Never touch `main`.
+Done in v0.6.0: the form (§0), spring stops on every joint, pan and fine tilt, the integrated camera head, finished-part continuity, door clearance, the cutaway render. Removed: the MF-40 mount face, port nuts, M3 fasteners and the accessory plates (§9). Do not push. Never touch `main`.
 
 ## 8. Open items (estimated until measured)
 
 | Item | Value used | How to close |
 | --- | --- | --- |
 | Column corner radius | r 12 | Collar coupon |
-| ruthex RX-M3x5.7 columns | knurl 4.6, hole 4.0 (table not labeled) | ruthex datasheet; the coupon_mf press |
-| Nut factor K | 0.2 | Torque-tension test on the coupon |
-| Payload mass | 1.0 kg design | Weigh the camera |
-| M3 into an insert | 0.05 Nm for 80 N | Coupon; a 0.05 Nm driver is below most torque screwdrivers, so "snug with two fingers on the short leg" until checked |
-| Knob torque | 0.48 Nm by hand for 400 N | Coupon with a luggage scale on the knob rim |
+| Column depth band | ±0.3 | Calipers along the clamp height |
+| ruthex table columns | knurl / hole read as D1 / D3 | ruthex datasheet; press an insert into the coupons |
+| Shoulder head melted into PETG | holds hand torque | Rosette coupon: turn the knob to the stop at 2 Nm |
+| Printed stack tolerance | ±0.15 (ring ±0.1) | Measure the coupons |
+| Payload mass | 1.0 kg design | Weigh the camera and lens |
 | TPU-on-aluminium friction | μ 0.5 | Coupon pull test |
-| PETG on PETG (rosette) | μ 0.2 | Coupon |
-| Screw length tolerances | ±0.3 M3, ±0.42 M6, ±0.25 1/4" | ISO 4759-1 table |
-| DIN 603 M6 stock lengths | 16–60 | Supplier listing |
-| ZV-E10 socket offset | 24 mm slot | Calipers |
-| Phone ear width / hole | 16 / 4.7 | Calipers |
+| PETG on PETG; TPU ring on PETG | μ 0.2; μ 0.5 | J3 and rosette coupons with a luggage scale |
+| ZV-E10 socket offset, door size | 13 / 2 mm; 36 × 24 at the grip end | Calipers |
+| Camera mass forward of the body centre | 5 mm | Balance on a rod |
+| Hand torque on the camera key | 1 Nm | It does not set any joint; only the camera washer row uses it |
 | Column top above the collar | 100 modeled, 181 measured limit | Clamp below the limit |
 
 Passing CAD checks is not a printed fit. The coupons and a 24 h payload hang test are the real proof.
 
-## 9. As built (where the code differs from earlier briefs, and why)
+## 9. As built (v0.6, and why it differs from v0.5)
 
-| Item | Brief | Code | Why |
+| Item | v0.5 | v0.6 | Why |
 | --- | --- | --- | --- |
-| Outer edges | 1.0 × 45° chamfers, no fillets | G2 skins: rolls and bed leads, no chamfer or fillet on an outer edge | v0.4 review: chamfers left G0 creases and broken zebra stripes. A skin is G2 by construction and avoids the OCC fillet that broke a 3MF. |
-| Knuckle | teardrop (circle + 45° tangents) | circle, G2 blends, vertical sides, buried G2 corners | The knuckle bore is the only horizontal hole; it keeps its own teardrop. Vertical sides print without support and blend G2. |
-| Collar side view | elliptic scoop under the spine | deck over an inset ring; the pad cantilevers on the deck | The scoop started with a vertical tangent (a hook) and any side cut leaves a crease along the spine. The two-tier form keeps every outer edge G2 and puts the only junction in a shadow groove. |
-| Spine root | none | pad leaves the ring at y 37; stress row at y 35 | |
-| Plan | taper from y 16, neck y 40 | taper from y 22, neck y 44 | The back half starts at the seam (y 1), so the side needs room for the seam corner (9.5) and the taper corner (11). |
-| Collar width | 66 | 73 | Inserts need 1.6 round a 4.6 knurl (seam x 27.05), the ring's G2 seam corner must not dip into that wall, and the ring sits 1.0 inside the deck. |
-| M3 joints | captive ISO 4032 nuts | ruthex heat-set inserts | A nut's bearing face carries 29 N at 3.85 MPa; an insert carries 90 N in pull-out shear, and there is no channel for a nut to slide back along. |
-| M3 preload | 0.4 Nm (667 N) | 0.05 Nm (80 N) | 667 N crushed 22.7 MPa into PETG. 80 N passes every bearing and insert row and still beats the 2× loads. |
-| Joint bolt | ISO 4017 hex head in a hex pocket | DIN 603 carriage bolt, square neck | The hex head bore 24 MPa on 52 mm². The dome bears 2.8 MPa on 141 mm², and the square neck still stops it turning. |
-| Knob washer | ISO 7089 in a Ø12.4 recess | ISO 7093-1 (18 mm) on the face | 15 MPa down to 1.8 MPa. A recess on the link's bed face would be an 18 mm ceiling. |
-| Camera plates | foot down, 11.7 thick | deck face down, 14.3 thick | The 18 mm camera washer slot needs to open upward in print. |
-| Port nut | slides in, no stop | 1.5 mm drop pocket | The nut can no longer slide back to the mouth. |
-| Head | MF block cut by a G2 ogee | knuckle + dense quintic-ogee loft into the MF | The cut block read as a block under a plate. |
-| Knob | flat dish, three V grooves | elliptic crown, G2 into the wall, 24 flutes | Turned look, one conic. |
-| Knob revolve | one 360° revolve | two 180° halves fused | A 360° revolve of the crown and its G2 blend read back from STEP 12 % small and invalid; the halves round-trip to 1e-13. |
-| Phone ear | captive M3 nut from the side | insert in the foot top | Same reason as the M3 joints. |
-| Stress rows | bending about X | moment vector: biaxial bending + twist, von Mises | v0.4 review. |
-| Design stacks | tip limit = tip + 0.5 (could not fail) | lengths only; tip rooms are parameters, measured by rays | v0.4 review. |
-| Coupon bore check | coupon vs the part it was cut from | coupon vs the measured column | v0.4 review: the old check was circular. |
-| Hero column | cut at z 100, unchecked | z 100, plus a measured install limit (181 mm) | The arm reaches over the column top; the limit is now a check and a README rule. |
-| Rosette trim | annulus r 5..13 | r 5..13 at the pitch plane, 45° cones away from it | A cylindrical trim left small flat ceilings on the vertical rosettes. |
-| Joint sweep | every pair | printed parts, knobs, camera, column; the swept joint's own rosette pair is left out | The teeth repeat every 15°, so each step meshes like the hero. |
-| 3MF read-back | `Mesher().read()` | signed volume of the triangles in the file | `Mesher().read()` took over 20 minutes on one part. |
-| Renders | `tools/render/scene.py` | `tools/render/meshes.py` (uv) writes OBJ with exact normals and runs `scene.py` (Blender 5.2) | build123d is not importable in Blender's Python; STL normals made the zebra jitter. |
-| `cable_clip` | optional | not made | |
+| Collar form | deck over an inset ring, shadow groove | one barrel skin (2 mm parabola), plan of conics, straight split | Review: stacked slabs. |
+| Seam heights | z 10, 30 | z 10, 28 | Two 16.4 counterbores with a flat-topped teardrop roof (6.8 bridge) fit the 40 mm height with 1.6 of PETG between them and 1.8 under the lower one; a full teardrop would run out of the bottom. |
+| Counterbore mouths | open | flush TPU caps | The mouths cut the elliptic back as long scoops (first v0.6 render). |
+| Seam fasteners | 4 × M3 × 30 into M3 inserts, 0.05 Nm (no driver sets it) | 4 spring stops, M5 shoulder on M5 inserts, from the back | Review: the torque spec could not be applied; 0.2 Nm by hand gave 333 N, 4.0 MPa insert shear. Now the insert sees 128 N at most, whatever the torque. |
+| Arm base | foot slab + upright on an MF, 4 × M3 | turned pedestal on a pan pivot stop | Pan, one surface, no M3. |
+| Joints | DIN 603 carriage bolt, nut in the knob, 0.48 Nm for 400 N | ISO 7379 shoulder stop, springs, insert; knob holds the head | 1 Nm by hand gave 833 N in v0.5. A carriage bolt cannot be a stop: its neck height runs 3.4–4.6 (DIN 603). |
+| J3 | rosette | friction on a TPU ring | Fine tilt. |
+| Links | one part twice | arm_link (two far ends) and arm_tip (near end A, friction end B) | The insert sits in the far part of every joint. |
+| Head | knuckle + ogee loft into an MF | one skin, platform at the lens end | No MF, no M3; the door is free; G2 on the finished part. |
+| Camera plate (`zve10`) | separate plate over the whole bottom | the head's platform, 31 wide | Review: it blocked the battery door. |
+| MF-40, port nuts, `cam_plate`, `phone`, `gopro`, `post` | present | removed | Their M3 feet had the same torque problem, the nuts rattled without a stud, and four were drilled plates. A 1/4"-20 accessory can use the camera screw on the head. |
+| Continuity rows | per skin, before fusing | on the finished part, every surface join | Review. |
+| Insert hole depth | could read infinite and pass | must be blind, a range | Review. |
+| Renders | 8 shots | 11, with a cutaway and a print layout | Show the stops and every part. |

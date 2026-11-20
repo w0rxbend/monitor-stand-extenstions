@@ -1,21 +1,27 @@
-"""Plan and profile curves, and the G2 skin every printed body is made of.
+"""Plan and profile curves: G2 corners and blends, a G1 turtle of conics, skins, turns.
 
 A corner is a quintic Bezier with three control points on each side. Its curvature is
 zero where it meets a straight side, so the join has no visible line (G2). The general
-blend matches position, tangent, and curvature at both ends, so it also joins a circle
-or a parabola. Sketches holding a Bezier are never offset: the STEP writer drops
-OFFSET-curve faces. Rebuild the outline at the new size instead.
+blend matches position, tangent, and curvature at both ends, so it also joins a circle,
+an ellipse or a parabola. Sketches holding a Bezier are never offset: the STEP writer
+drops OFFSET-curve faces. Rebuild the outline at the new size instead.
+
+The turtle draws a G1 path of exact conics (lines, circles, quarter ellipses); `soft()`
+then replaces a short span at every join with a quintic that matches both curvatures.
+Most of the profile stays an exact conic, every join is G2.
 
 A skin is one edge profile (cap, G2 roll, wall, G2 roll, cap) swept round a G2 plan
-outline, closed by two planar caps and sewn into one solid. No boolean and no OCC fillet
-touches it, so every outer edge is curvature continuous by construction. The only crease
-is the 45 degree lead on a print-bed edge, which no G2 roll can print without support.
+outline, closed by two planar caps and sewn into one solid. A turned body is one profile
+revolved. No OCC fillet touches either, so every outer join is curvature continuous by
+construction. The only crease is the 45 degree lead on a print-bed edge.
 """
 
-from math import cos, radians, sin, sqrt
+from dataclasses import dataclass
+from math import atan2, cos, degrees, radians, sin, sqrt, tan
 from typing import NamedTuple
 
 from build123d import (
+    Axis,
     Bezier,
     CenterArc,
     Edge,
@@ -27,6 +33,7 @@ from build123d import (
     Vector,
     Wire,
     make_face,
+    revolve,
     sweep,
 )
 from OCP.BRepAdaptor import BRepAdaptor_Curve
@@ -121,6 +128,20 @@ def teardrop(radius: float, center: Point, tip_deg: float) -> Face:
     return make_face(Wire([arc, Line(arc @ 1, tip), Line(tip, arc @ 0)])).faces()[0]
 
 
+def flat_teardrop(radius: float, center: Point, tip_deg: float) -> Face:
+    """A teardrop cut flat at `radius` from the centre: it reaches no further than the
+    circle, and the flat roof bridges 2 (sqrt 2 - 1) radius, under 10 mm up to r 12."""
+    cx, cy = center
+    ahead = Vector(cos(radians(tip_deg)), sin(radians(tip_deg)))
+    side = Vector(-ahead.Y, ahead.X)
+    half = radius * (sqrt(2) - 1)
+    near_side = Vector(cx, cy) + ahead * radius - side * half
+    far_side = Vector(cx, cy) + ahead * radius + side * half
+    arc = CenterArc((cx, cy), radius, tip_deg + 45, 270)
+    edges = [arc, Line(arc @ 1, near_side), Line(near_side, far_side), Line(far_side, arc @ 0)]
+    return make_face(Wire(edges)).faces()[0]
+
+
 def edge_curvature(edge: Edge, near: Vector) -> float:
     """Curvature of the real edge at its end nearest `near`, read from OCCT (1/mm).
 
@@ -153,6 +174,176 @@ def _shared_point(left: Edge, right: Edge) -> Vector | None:
             if (left_point - right_point).length < 1e-5:
                 return left_point
     return None
+
+
+# --- Chains of conics joined G2 ----------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Segment:
+    """One exact curve of a G1 turtle path. `turn` is signed: + is a left turn.
+
+    kind "line": `size` is the length. "arc": `size` is the radius. "ellipse": a quarter
+    (or less) of an ellipse that starts at a vertex: `size` is the semi-axis along the
+    start heading, `across` the one toward the turn, `turn` at most 90 degrees.
+    """
+
+    kind: str
+    start: Vector
+    heading: float  # degrees, at the start
+    size: float
+    turn: float = 0.0
+    across: float = 0.0
+
+    def _local(self, share: float) -> tuple[Vector, Vector, Vector]:
+        """(point, first derivative, second derivative) at `share` of the segment."""
+        h = radians(self.heading)
+        ahead, left = Vector(cos(h), sin(h)), Vector(-sin(h), cos(h))
+        side = 1.0 if self.turn >= 0 else -1.0
+        if self.kind == "line":
+            return self.start + ahead * (self.size * share), ahead * self.size, Vector(0, 0)
+        if self.kind == "arc":
+            angle = radians(self.turn) * share
+            centre = self.start + left * (side * self.size)
+            radial = self.start - centre
+            point = centre + _rotated(radial, angle)
+            first = _rotated(ahead, angle) * (self.size * abs(radians(self.turn)))
+            second = (centre - point) * (radians(self.turn) ** 2)
+            return point, first, second
+        phi = self._phi_end() * share
+        a, b = self.size, self.across
+        local = Vector(a * sin(phi), side * (b - b * cos(phi)))
+        first = Vector(a * cos(phi), side * b * sin(phi)) * self._phi_end()
+        second = Vector(-a * sin(phi), side * b * cos(phi)) * self._phi_end() ** 2
+        lift = lambda v: ahead * v.X + left * v.Y  # noqa: E731
+        return self.start + lift(local), lift(first), lift(second)
+
+    def _phi_end(self) -> float:
+        """Ellipse parameter where the heading has turned by `turn`."""
+        a, b, turn = self.size, self.across, radians(abs(self.turn))
+        if turn >= radians(90) - 1e-12:
+            return radians(90)
+        return atan2(a * tan(turn), b)
+
+    def frame(self, share: float) -> Frame:
+        point, first, second = self._local(share)
+        speed = first.length
+        tangent = first / speed
+        curvature = abs(first.X * second.Y - first.Y * second.X) / speed ** 3
+        normal = second - tangent * second.dot(tangent)
+        normal = normal.normalized() if normal.length > 1e-12 else Vector(-tangent.Y, tangent.X)
+        return Frame(point, tangent, normal, curvature)
+
+    @property
+    def end(self) -> Vector:
+        return self._local(1.0)[0]
+
+    @property
+    def end_heading(self) -> float:
+        return self.heading + self.turn
+
+    def length(self) -> float:
+        return sum((self._local((k + 1) / 64)[0] - self._local(k / 64)[0]).length
+                   for k in range(64))
+
+    def edge(self, start: float = 0.0, stop: float = 1.0) -> Edge:
+        """The exact curve between two shares of it."""
+        if self.kind == "line":
+            return Line(self._local(start)[0], self._local(stop)[0])
+        if self.kind == "arc":
+            h = radians(self.heading)
+            side = 1.0 if self.turn >= 0 else -1.0
+            centre = self.start + Vector(-sin(h), cos(h)) * (side * self.size)
+            from_centre = self._local(start)[0] - centre
+            first = degrees(atan2(from_centre.Y, from_centre.X))
+            return CenterArc(centre, self.size, first, self.turn * (stop - start))
+        h = radians(self.heading)
+        side = 1.0 if self.turn >= 0 else -1.0
+        left = Vector(-sin(h), cos(h))
+        centre = self.start + left * (side * self.across)
+        plane = Plane(origin=centre, x_dir=Vector(cos(h), sin(h), 0), z_dir=(0, 0, side))
+        phi0, phi1 = self._phi_end() * start, self._phi_end() * stop
+        return Edge.make_ellipse(self.size, self.across, plane, degrees(phi0) - 90,
+                                 degrees(phi1) - 90)
+
+
+def _rotated(vector: Vector, angle: float) -> Vector:
+    return Vector(vector.X * cos(angle) - vector.Y * sin(angle),
+                  vector.X * sin(angle) + vector.Y * cos(angle))
+
+
+class Turtle:
+    """A G1 path in a plane: lines, circular arcs and elliptic turns, each starting where
+    and how the last one ended. `soft()` then makes every join G2."""
+
+    def __init__(self, start: tuple[float, float], heading: float) -> None:
+        self.segments: list[Segment] = []
+        self._at, self._heading = Vector(*start), heading
+
+    def _add(self, segment: Segment) -> "Turtle":
+        self.segments.append(segment)
+        self._at, self._heading = segment.end, segment.end_heading
+        return self
+
+    def line(self, length: float) -> "Turtle":
+        return self._add(Segment("line", self._at, self._heading, length))
+
+    def arc(self, radius: float, turn: float) -> "Turtle":
+        return self._add(Segment("arc", self._at, self._heading, radius, turn))
+
+    def ellipse(self, along: float, across: float, turn: float) -> "Turtle":
+        if abs(turn) > 90 + 1e-9:
+            raise ValueError("an elliptic turn starts at a vertex and turns at most 90 deg")
+        return self._add(Segment("ellipse", self._at, self._heading, along, turn, across))
+
+    @property
+    def at(self) -> Vector:
+        return self._at
+
+    @property
+    def heading(self) -> float:
+        return self._heading
+
+    def soft(self, trim: float, closed: bool = False) -> list[Edge]:
+        """Edges with a G2 quintic over up to `trim` either side of every join.
+
+        A join's blend never takes more than 0.4 of either segment's length, so a short
+        lead or line keeps its straight middle. `closed` also blends the last segment
+        into the first; the path must end where it started.
+        """
+        segments = self.segments
+        count = len(segments)
+        if closed and (self._at - segments[0].start).length > 1e-6:
+            raise ValueError("a closed turtle path must end where it started")
+        sizes = [segment.length() for segment in segments]
+        pairs = count if closed else count - 1
+        joins = [min(trim, 0.4 * sizes[k], 0.4 * sizes[(k + 1) % count]) for k in range(pairs)]
+        cut_out = [joins[k] if k < pairs else 0.0 for k in range(count)]
+        cut_in = [joins[k - 1] if k > 0 or closed else 0.0 for k in range(count)]
+        edges: list[Edge] = []
+        for index, segment in enumerate(segments):
+            start = cut_in[index] / sizes[index]
+            stop = 1.0 - cut_out[index] / sizes[index]
+            edges.append(segment.edge(start, stop))
+            if index < pairs:
+                after = (index + 1) % count
+                leave = segment.frame(stop)
+                arrive = segments[after].frame(cut_in[after] / sizes[after])
+                reach = 0.5 * joins[index]
+                edges.append(g2_blend(leave, arrive, reach, reach))
+        return edges
+
+
+def revolved(profile: Wire) -> Part:
+    """A closed (r, z) profile drawn in XY (y is height), turned about the height axis.
+
+    The profile must close along the axis. The STEP round trip is checked at export.
+    """
+    face = Plane.XZ.location * make_face(profile).faces()[0]
+    body = revolve(face, Axis.Z, 360)
+    if not body.is_valid or len(body.solids()) != 1:
+        raise ValueError("revolved profile did not close into one valid solid")
+    return body
 
 
 # --- G2 skin -----------------------------------------------------------------------------------

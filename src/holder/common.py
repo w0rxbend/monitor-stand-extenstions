@@ -15,6 +15,7 @@ from build123d import (
     Align,
     Axis,
     Box,
+    Compound,
     Cone,
     Cylinder,
     Edge,
@@ -41,16 +42,15 @@ from OCP.GProp import GProp_GProps
 from OCP.TopAbs import TopAbs_EDGE, TopAbs_FACE, TopAbs_REVERSED
 from OCP.TopExp import TopExp
 from OCP.TopoDS import TopoDS
-from OCP.TopTools import TopTools_IndexedDataMapOfShapeListOfShape
+from OCP.TopTools import TopTools_IndexedDataMapOfShapeListOfShape, TopTools_IndexedMapOfShape
 
-from holder.form import teardrop
+from holder.form import flat_teardrop, teardrop
 from holder.params import (
     BEARING_LIMIT,
     INSERT_SHEAR_LIMIT,
     INSERT_SINK,
     LEAD_IN,
     Insert,
-    Nut,
     Screw,
     Washer,
 )
@@ -61,17 +61,13 @@ OVERHANG_DEG = 45.0
 OVERHANG_TOL = 0.5
 BRIDGE_SPAN = 10.0
 BED_Z = 0.05
-SMALL_HOLE_R = 2.5  # holes under 5 mm print round
+SMALL_HOLE_R = 3.25  # estimated: a horizontal hole up to 6.5 mm prints round with a
+# small sag on top; a heat-set insert hole must be round, so M5 insert holes rely on this
 MODEL_GAP = 0.02  # bought parts sit this far off their seat so touching faces read as zero
 PROBE_SLACK = 0.01  # a wall probe stops this short of the minimum, so equality passes
 CONTACT_T = 0.05  # thickness of a bearing-area probe sunk into the seat
-NUT_PLAY_MAX = 0.5  # mm a resting nut may move toward its mouth before a wall stops it
 
 Vec3 = tuple[float, float, float]
-GABLE_FAR = "far"  # the channel ceiling in print is past the nut (part prints face down)
-GABLE_HEAD = "head"  # the channel ceiling in print is on the head side (part prints face up)
-CEILING_SPAN = 9.8  # mm: flat seat between the head-side edge strips (bridge <= 10; the
-# strips stay 1.5 from the M3 channels beside them)
 
 
 class Check(NamedTuple):
@@ -161,18 +157,6 @@ def lead_in(diameter: float, origin: Iterable[float], axis: Iterable[float]) -> 
     return plane.location * cone
 
 
-def teardrop_ring(
-    diameter: float, wall: float, length: float, origin: Iterable[float],
-    axis: Iterable[float], tip: Iterable[float],
-) -> Part:
-    """Wall probe round a teardrop hole: a teardrop grown by `wall` is the exact offset."""
-    reach = wall - PROBE_SLACK
-    outer = teardrop_rod(diameter + 2 * reach, length, origin, axis, tip)
-    direction = Vector(*axis).normalized()
-    inner = teardrop_rod(diameter + 0.02, length + 2, Vector(*origin) - direction, axis, tip)
-    return outer - inner
-
-
 def teardrop_rod(
     diameter: float, length: float, origin: Iterable[float], axis: Iterable[float],
     tip: Iterable[float],
@@ -182,6 +166,17 @@ def teardrop_rod(
     up = Vector(*tip).normalized()
     plane = plane_at(origin, direction, up)
     face = plane.location * teardrop(diameter / 2, (0, 0), 0.0)
+    return extrude(face, amount=length, dir=direction)
+
+
+def flat_teardrop_rod(
+    diameter: float, length: float, origin: Iterable[float], axis: Iterable[float],
+    tip: Iterable[float],
+) -> Part:
+    """Horizontal hole with a 45 degree roof toward `tip`, cut flat at the circle."""
+    direction = Vector(*axis).normalized()
+    plane = plane_at(origin, direction, Vector(*tip).normalized())
+    face = plane.location * flat_teardrop(diameter / 2, (0, 0), 0.0)
     return extrude(face, amount=length, dir=direction)
 
 
@@ -237,44 +232,53 @@ def ring_probe(
 class SeatedInsert:
     """A heat-set insert pressed in along `axis` from `face` (a point on the part face).
 
-    The insert top sits INSERT_SINK below the face. The hole runs past the insert by
-    `tip_room` minus the insert for the screw tip, at the clearance diameter.
+    The insert top sits INSERT_SINK below the face, so a shoulder that stops on it lands
+    on brass. The blind hole runs `tip_room` past the insert. A hole that lies across the
+    print layers gets a 45 degree roof toward `tip` (print-up).
     """
 
     label: str
     insert: Insert
     face: Vector
     axis: Vector  # into the part
-    tip_room: float  # from the face to the tip bore floor
-    clear_d: float
+    tip_room: float = 0.5
+    tip: Vector | None = None
 
     @property
     def top(self) -> Vector:
         return self.face + self.axis * INSERT_SINK
 
-    def cutters(self) -> list[Part]:
-        hole = INSERT_SINK + self.insert.length + 0.5
-        cutters = [rod(self.insert.hole_d, hole + 1, self.face - self.axis, self.axis),
-                   lead_in(self.insert.hole_d, self.face, self.axis)]
-        if self.tip_room > hole:
-            cutters.append(rod(self.clear_d, self.tip_room, self.face, self.axis))
-        return cutters
+    @property
+    def depth(self) -> float:
+        return INSERT_SINK + self.insert.length + self.tip_room
 
-    def solid(self, minor_d: float) -> Part:
+    def _bore(self, diameter: float, length: float, origin: Vector) -> Part:
+        if self.tip is None:
+            return rod(diameter, length, origin, self.axis)
+        return teardrop_rod(diameter, length, origin, self.axis, self.tip)
+
+    def cutters(self) -> list[Part]:
+        return [self._bore(self.insert.hole_d, self.depth + 1, self.face - self.axis),
+                lead_in(self.insert.hole_d, self.face, self.axis)]
+
+    def solid(self) -> Part:
         """The insert as pressed: knurl diameter, thread minor bore (the screw overlaps it)."""
         body = rod(self.insert.outer_d, self.insert.length, self.top, self.axis)
-        return body - rod(minor_d, self.insert.length + 2, self.top - self.axis, self.axis)
+        return body - rod(self.insert.minor_d, self.insert.length + 2, self.top - self.axis,
+                          self.axis)
 
-    def wall_probe(self) -> Part:
+    def wall_probe(self, start: float = 0.0) -> Part:
         return ring_probe(self.top, self.axis, self.insert.outer_d / 2, self.insert.wall_min,
-                          0.0, self.insert.length)
+                          start, self.insert.length)
 
-    def checks(self, part: Part) -> list[Check]:
-        rows = [encloses(part, self.wall_probe(),
+    def checks(self, part: Part, wall_from: float = 0.0) -> list[Check]:
+        """Maker's wall round the knurl (from `wall_from` below the insert top), and a blind
+        hole deep enough for the insert and its tip room. A through hole fails."""
+        rows = [encloses(part, self.wall_probe(wall_from),
                          f"{self.label} insert wall >= {self.insert.wall_min:g}")]
         depth = first_hit(part, self.top + self.axis * 0.5, self.axis) + 0.5 + INSERT_SINK
-        rows.append(at_least(f"{self.label} insert hole depth", depth,
-                             INSERT_SINK + self.insert.length + 0.3))
+        rows.append(within(f"{self.label} insert hole depth (blind)", depth,
+                           INSERT_SINK + self.insert.length + 0.3, self.depth + 0.05))
         return rows
 
 
@@ -307,143 +311,6 @@ def bearing_row(name: str, force: float, area: float) -> Check:
 
 
 # --- Captive nuts --------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class CaptiveNut:
-    """A nut that slides along `travel` from a mouth into a pocket.
-
-    `seat` is the centre of the pocket face toward the screw head: the screw pulls the nut
-    onto that face, into solid material. `axis` runs from the head toward the nut. One
-    hex corner points along `travel`, so the channel is only the across-flats wide.
-    """
-
-    label: str
-    nut: Nut
-    seat: Vector
-    axis: Vector
-    travel: Vector
-    reach: float  # seat centre to past the mouth, along travel
-    gable: str = ""  # "far": 45 deg roof past the nut; "head": 45 deg strips at the seat edges
-    drop: float = 0.0  # pocket deeper than the channel: the nut drops in and cannot slide out
-
-    @property
-    def plane(self) -> Plane:
-        return Plane(origin=self.seat, x_dir=self.travel, z_dir=self.axis)
-
-    def pocket(self) -> Part:
-        return hex_prism(self.nut.pocket_af, self.nut.pocket_m + self.drop, self.plane)
-
-    def channel(self) -> Part:
-        af, height = self.nut.pocket_af, self.nut.pocket_m
-        local = Pos(self.reach / 2, 0, height / 2) * Box(self.reach, af, height)
-        if self.gable == GABLE_FAR:
-            back = af / sqrt(3)
-            roof = Polygon((-af / 2, height), (af / 2, height), (0, height + af / 2), align=None)
-            prism = extrude(Plane.YZ.location * roof, amount=self.reach + back)
-            local += Pos(-back, 0, 0) * prism
-        elif self.gable == GABLE_HEAD:
-            # 45 deg strips at both ceiling edges leave a flat seat CEILING_SPAN wide: a short
-            # bridge, and still a flat face for the nut to bear on.
-            flats = af / sqrt(3) / 2
-            run = (af - CEILING_SPAN) / 2
-            for side in (-1.0, 1.0):
-                edge = side * af / 2
-                strip = Polygon((edge, 0), (edge - side * run, 0), (edge, -run), align=None)
-                prism = extrude(Plane.YZ.location * strip, amount=self.reach + flats)
-                local += Pos(-flats, 0, 0) * prism
-        return self.plane.location * local
-
-    def cutters(self) -> list[Part]:
-        return [self.pocket(), self.channel()]
-
-    def nut_at_seat(self) -> Part:
-        """The max nut where the screw pulls it: on the seat face."""
-        plane = self.plane.offset(MODEL_GAP)
-        body = hex_prism(self.nut.af_max, self.nut.m_max, plane)
-        return body - rod(self.nut.minor_d, self.nut.m_max + 2, plane.origin - self.axis,
-                          self.axis)
-
-    def sweep(self) -> Part:
-        """The max nut swept from past the mouth to its seat."""
-        lift = (self.nut.pocket_m - self.nut.m_max) / 2
-        plane = self.plane.offset(lift)
-        corner = self.nut.af_max / sqrt(3)
-        points = [(corner, 0), (corner / 2, self.nut.af_max / 2),
-                  (-corner / 2, self.nut.af_max / 2), (-corner, 0),
-                  (-corner / 2, -self.nut.af_max / 2), (corner / 2, -self.nut.af_max / 2)]
-        hexagon = Polygon(*points, align=None)
-        # Sweep the 2D hex along travel, then thicken: a prism along x with hex-ish ends.
-        body = extrude(hexagon, amount=self.nut.m_max)
-        path = extrude(
-            Plane.YZ.location * Polygon(
-                (-self.nut.af_max / 2, 0), (self.nut.af_max / 2, 0),
-                (self.nut.af_max / 2, self.nut.m_max), (-self.nut.af_max / 2, self.nut.m_max),
-                align=None,
-            ),
-            amount=self.reach,
-        )
-        return plane.location * (body + path)
-
-    def resting(self, shift: float = 0.0) -> Part:
-        """The max nut where gravity leaves it before a screw goes in: on the pocket floor.
-
-        `axis` points down in the assembly pose, so the nut sinks away from the seat.
-        `shift` moves it along `travel`, toward the mouth.
-        """
-        sink = self.nut.pocket_m + self.drop - self.nut.m_max - MODEL_GAP
-        plane = self.plane.offset(sink)
-        moved = Plane(origin=plane.origin + self.travel * shift, x_dir=self.travel,
-                      z_dir=self.axis)
-        return hex_prism(self.nut.af_max, self.nut.m_max, moved)
-
-    def free_play(self, part: Part) -> float:
-        """How far the resting nut slides toward the mouth before it meets PETG (bisection)."""
-        low, high = 0.0, 2.0
-        if intersection_volume(self.resting(high), part) <= VOL_EPS:
-            return high
-        for _ in range(10):
-            middle = (low + high) / 2
-            if intersection_volume(self.resting(middle), part) <= VOL_EPS:
-                low = middle
-            else:
-                high = middle
-        return high
-
-    def checks(self, part: Part) -> list[Check]:
-        clash = intersection_volume(self.sweep(), part)
-        rows = [Check(f"{self.label} nut travel", clash <= VOL_EPS,
-                      f"{clash:.2e} mm3 of PETG in the max nut's path")]
-        width = self.channel_width(part)
-        rows.append(at_least(f"{self.label} channel width", width, self.nut.af_max + 0.15))
-        rows.append(at_most(f"{self.label} resting nut play toward the mouth",
-                            self.free_play(part), NUT_PLAY_MAX))
-        return rows
-
-    def channel_width(self, part: Part) -> float:
-        """Across-travel width at the pocket centre, read from the real faces."""
-        centre = self.seat + self.axis * (self.nut.pocket_m / 2)
-        across = self.axis.cross(self.travel).normalized()
-        return first_hit(part, centre, across) + first_hit(part, centre, -across)
-
-    def wall_probes(self, wall: float, hole_d: float) -> list[tuple[str, Part]]:
-        """Back half of a hex ring round the pocket, and the roof over its flats.
-
-        The mouth side is the channel, so it is left out of both probes.
-        """
-        af, height = self.nut.pocket_af, self.nut.pocket_m + self.drop
-        reach = wall - PROBE_SLACK
-        grown = hex_prism(af + 2 * reach, height, Plane(origin=(0, 0, 0)))
-        ring = grown - hex_prism(af + 0.02, height + 2, Plane(origin=(0, 0, -1)))
-        back = ring & box_from(-af, -af, -1, 0, af, height + 1)
-        roof = hex_prism(af, reach, Plane(origin=(0, 0, -reach)))
-        roof &= box_from(-af, -af, -wall - 1, af / sqrt(3) / 2, af, 1)
-        roof -= Pos(0, 0, -wall - 1) * Cylinder(hole_d / 2 + 0.02, wall + 2,
-                                                  align=(Align.CENTER, Align.CENTER, Align.MIN))
-        place = self.plane.location
-        own = self.channel()
-        return [(f"{self.label} side wall", place * back - own),
-                (f"{self.label} roof", place * roof - own)]
 
 
 # --- Ray measurements ----------------------------------------------------------------------
@@ -482,35 +349,6 @@ def socket_screw(screw: Screw, length: float, origin: Vector, axis: Vector) -> P
     return plane.location * (head - socket + shank)
 
 
-def carriage_bolt(screw: Screw, length: float, origin: Vector, axis: Vector,
-                  corner: Vector) -> Part:
-    """DIN 603: elliptic dome head, square neck (a corner along `corner`), shank.
-
-    `origin` is the centre under the head, the shank runs along `axis`.
-    """
-    from build123d import EllipticalCenterArc, Line, Wire, make_face, revolve
-
-    radius, height = screw.head_d / 2, screw.head_k
-    dome = EllipticalCenterArc((0, 0), radius, height, start_angle=90, arc_size=-90)
-    outline = Wire([Line((0, 0), (radius, 0)), dome.reversed(), Line((0, height), (0, 0))])
-    head = revolve(Plane.XZ.location * make_face(outline).faces()[0], Axis.Z, 360)
-    head = Pos(0, 0, 0) * head.mirror(Plane.XY)
-    half = screw.neck_w / 2
-    neck = Pos(0, 0, 0) * extrude(Polygon((half, 0), (0, half), (-half, 0), (0, -half),
-                                          align=None), amount=screw.neck_h)
-    shank = Cylinder(screw.d / 2, length, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    plane = plane_at(origin, axis, corner)
-    return plane.location * (head + neck + shank)
-
-
-def nut_solid(nut: Nut, origin: Vector, axis: Vector, corner: Vector) -> Part:
-    plane = plane_at(origin, axis, corner)
-    body = hex_prism(nut.af_max, nut.m_max, Plane(origin=(0, 0, 0)))
-    body -= Pos(0, 0, -1) * Cylinder(nut.minor_d / 2, nut.m_max + 2,
-                                     align=(Align.CENTER, Align.CENTER, Align.MIN))
-    return plane.location * body
-
-
 def washer_solid(washer: Washer, origin: Vector, axis: Vector) -> Part:
     """Washer from `origin` (head side) for its thickness along `axis`."""
     ring = rod(washer.outer, washer.t, origin, axis) - rod(
@@ -523,44 +361,6 @@ def column_solid(width: float, depth: float, radius: float, z0: float, z1: float
     from build123d import RectangleRounded
 
     return Pos(0, 0, z0) * extrude(RectangleRounded(width, depth, radius), amount=z1 - z0)
-
-
-# --- Screw stacks --------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class Stack:
-    """One screw joint. Grips run from under the head to the nut's load face."""
-
-    joint: str
-    screw: Screw
-    grip_open: float
-    grip_closed: float
-    engage_need: float
-    tip_limit: float  # longest allowed protrusion past the load face
-    head_sink: float | None = None
-
-    @property
-    def length(self) -> float:
-        return self.screw.stock_at_least(self.grip_open + self.engage_need + self.screw.length_tol)
-
-    def rows(self) -> list[Check]:
-        size, tol = self.length, self.screw.length_tol
-        rows = [Check(f"{self.joint} screw", True, f"{self.screw.standard} x{size:g}")]
-        for state, grip in (("open", self.grip_open), ("closed", self.grip_closed)):
-            engaged = size - tol - grip
-            rows.append(at_least(f"{self.joint} engagement, short screw, {state}", engaged,
-                                 self.engage_need))
-            tip = size + tol - grip
-            rows.append(at_most(f"{self.joint} tip, long screw, {state}", tip, self.tip_limit))
-        if self.head_sink is not None:
-            rows.append(at_least(f"{self.joint} head below the surface", self.head_sink, 0.3))
-        return rows
-
-
-def thread_need(screw: Screw, nut: Nut) -> float:
-    """Nut height plus two pitches of protrusion."""
-    return nut.m_max + 2 * screw.pitch
 
 
 # --- Assembly clash ------------------------------------------------------------------------
@@ -732,34 +532,80 @@ def _cross_curvature(face: Face, point: Vector, along: Vector) -> tuple[Vector, 
     return normal * side, curvature * side  # both read against the outward normal
 
 
-def edge_joins(part: Part) -> list[EdgeJoin]:
-    """Normal step and curvature step across every edge shared by two faces, at 3 points."""
+def _inner_point(face: Face) -> Vector:
+    """A point inside the trimmed face: the UV centre, or the first grid point inside."""
+    for steps in (1, 3, 7):
+        for i in range(steps):
+            for j in range(steps):
+                point = face.position_at((i + 0.5) / steps, (j + 0.5) / steps)
+                if face.is_inside(point, 1e-4):
+                    return point
+    return face.center()
+
+
+def on_skin(part: Part, skin: Part, tol: float = 1e-4) -> set[int]:
+    """Indices (OCCT map, from 1) of the part's faces on the uncut body's outer surface.
+
+    A face cut by a hole, a seam or a flat lies inside the body, off its surface. A crease
+    where two fused skins meet has both its faces on the surface, so it is measured.
+    """
+    surface = Compound(skin.faces())
+    faces = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(part.wrapped, TopAbs_FACE, faces)
+    return {index for index in range(1, faces.Extent() + 1)
+            if Vertex(_inner_point(Face(TopoDS.Face_s(faces.FindKey(index)))))
+            .distance_to(surface) <= tol}
+
+
+class Joins(NamedTuple):
+    skin: list[EdgeJoin]  # both faces on the outer surface
+    features: int  # edges where a cut (hole, flat, seam) meets anything
+
+
+def edge_joins(part: Part, skin: Part | None = None) -> Joins:
+    """Normal step and curvature step across every edge shared by two faces, at 3 points.
+
+    With `skin` (the body before any cut), only edges whose two faces both lie on the
+    skin's surface are measured; the rest are counted as feature edges.
+    """
+    faces = TopTools_IndexedMapOfShape()
+    TopExp.MapShapes_s(part.wrapped, TopAbs_FACE, faces)
+    keep = set(range(1, faces.Extent() + 1)) if skin is None else on_skin(part, skin)
     shared = TopTools_IndexedDataMapOfShapeListOfShape()
     TopExp.MapShapesAndAncestors_s(part.wrapped, TopAbs_EDGE, TopAbs_FACE, shared)
-    joins = []
+    joins, features = [], 0
     for index in range(1, shared.Extent() + 1):
-        faces = [Face(TopoDS.Face_s(face)) for face in shared.FindFromIndex(index)]
-        if len(faces) != 2:
+        pair = [Face(TopoDS.Face_s(face)) for face in shared.FindFromIndex(index)]
+        if len(pair) != 2:
+            continue
+        if not all(faces.FindIndex(face.wrapped) in keep for face in pair):
+            features += 1
             continue
         edge = Edge(TopoDS.Edge_s(shared.FindKey(index)))
         worst_angle, worst_jump = 0.0, 0.0
         for share in (0.2, 0.5, 0.8):
             point, along = edge @ share, (edge % share).normalized()
-            (n0, k0), (n1, k1) = (_cross_curvature(face, point, along) for face in faces)
+            (n0, k0), (n1, k1) = (_cross_curvature(face, point, along) for face in pair)
             worst_angle = max(worst_angle, n0.get_angle(n1))
             worst_jump = max(worst_jump, abs(k0 - k1))
         joins.append(EdgeJoin(edge.center(), worst_angle, worst_jump))
-    return joins
+    return Joins(joins, features)
 
 
-def skin_rows(part: Part, name: str, crease_ok) -> list[Check]:
-    """Every edge of a skin is G2 (normal step <= 0.5 deg, curvature step <= 2e-3 /mm),
-    except where `crease_ok(centre)` names an intended crease (a bed lead, a junction)."""
-    joins = [join for join in edge_joins(part) if not crease_ok(join.centre)]
+def skin_rows(part: Part, name: str, crease_ok, skin: Part | None = None) -> list[Check]:
+    """Every join of the outer surface is G2 (normal step <= 0.5 deg, curvature step
+    <= 2e-3 /mm), except where `crease_ok(centre)` names an intended crease (a bed lead).
+
+    Run on the finished part with its uncut `skin`, so a crease where two volumes were
+    fused is measured, and cut features are counted but not judged.
+    """
+    found = edge_joins(part, skin)
+    joins = [join for join in found.skin if not crease_ok(join.centre)]
     angle = max((join.angle for join in joins), default=0.0)
     jump = max((join.curvature_jump for join in joins), default=0.0)
+    where = f"{len(joins)} surface joins, {found.features} feature edges"
     return [
-        at_most(f"{name} skin: normal step at every join ({len(joins)} edges)", angle,
-                G1_DEG, "deg"),
-        at_most(f"{name} skin: curvature step at every join", jump, G2_JUMP, "/mm"),
+        at_most(f"{name} surface: normal step at every join ({where})", angle, G1_DEG,
+                "deg"),
+        at_most(f"{name} surface: curvature step at every join", jump, G2_JUMP, "/mm"),
     ]

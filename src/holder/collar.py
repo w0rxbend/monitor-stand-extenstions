@@ -1,81 +1,81 @@
-"""Collar: two PETG shells round the column, and two TPU 95A grip liners.
+"""Collar: one barrel-walled PETG body round the column, split at the seam, and two TPU
+95A grip liners.
 
-The PETG shell carries the clamp load. TPU 95A loses 30-38 % of its compression to set
-(Essentium, BASF TDS), so the liner is only a 2 mm grip layer with 45 degree V ribs.
+Form. The plan is one G1 turtle path of exact conics, made G2 at every join: a straight
+front, quarter-ellipse front corners, straight sides, circular back shoulders, a concave
+waist and the circular tail that carries the pan pivot. One edge profile is swept round
+it: a G2 roll at the bottom, a 45 degree lead on the top face (the print bed), and a wall
+that is an exact parabola bulging 2 mm. The seam is a straight split through that one
+body, so the two shells read as one turned-looking object with a single parting line.
 
-Each shell is two G2 skins fused: a deck (z deck_z..collar_h) on the full plan, whose top
-is one flat plane from the ring into the mount face (MF), and a lower ring set
-`ring_inset` inside the deck. Where the deck's rolled underside meets the ring wall there
-is a shadow groove all round, and the MF pad cantilevers off the ring on the deck alone.
-Every outer edge is a G2 roll except the 45 degree bed lead on the top face, which is the
-print bed. The walls are straight: the seam faces belong to the same skin and must stay flat.
-Four seam screws run inside the wall from the -Y face (the monitor side) into heat-set
-inserts pressed into the back shell's seam face. The 1/4" port nut slides in from the
-bore, behind the liner, and drops into its pocket.
+Load. The PETG shell carries the clamp. TPU 95A loses 30-38 % of its compression to set
+(Essentium, BASF TDS), so the liner is only a 2 mm grip layer with 45 degree V ribs, and
+the seam stops (stops.py) push with six flat DIN 2093 C springs each: the clamp force
+stays near constant while the ribs creep or the column runs a little large or small.
+The seam shoulder screws enter from the back (+Y, away from the monitor) and stop on M5
+inserts in the front shell's seam face. Nothing shows on the front.
 """
 
-from math import sqrt
+from functools import cache
 
-from build123d import Face, Part, Pos, RectangleRounded, Vector, extrude, loft
+from build123d import Face, Part, Pos, RectangleRounded, Vector, Wire, extrude, loft
 
+from holder.arm import SPOT, knob_d, pivot_stop
 from holder.common import (
+    MODEL_GAP,
     Check,
     SeatedInsert,
-    annulus_footprint,
     at_least,
-    bearing_row,
     box_from,
-    contact_area,
-    encloses,
-    insert_shear_row,
+    flat_teardrop_rod,
     named,
     one_solid,
     overhang_rows,
     print_orientation,
-    ring_probe,
     rod,
     skin_rows,
-    teardrop_ring,
     teardrop_rod,
 )
-from holder.form import BedLead, Roll, curvature_jumps, g2_skin, soft_outline
-from holder.mount import MountFace
+from holder.form import BedLead, Roll, Turtle, curvature_jumps, g2_skin
 from holder.params import (
-    INSERT_ENGAGE,
+    INSERT_M5,
     INSERT_SINK,
-    M3_CLEAR,
-    M3_INSERT,
-    M3_SHCS,
-    M3_WASHER,
-    M3_WASHER_BORE,
     MATERIALS,
     PETG_WALL,
-    PRELOAD_N,
+    SHOULDER_CLEAR,
+    SHOULDER_M5,
+    SPRING_C14,
+    WASHER_M8,
     Params,
 )
+from holder.stops import Placed, StopSpec
 
 PRINT = {
     "collar_front": (0, 0, 1),
     "collar_back": (0, 0, 1),
     "liner_front": (0, 0, -1),
     "liner_back": (0, 0, -1),
+    **{f"seam_cap_{k}": (0, -1, 0) for k in range(1, 5)},
 }
 MATERIAL = {"collar_front": "PETG", "collar_back": "PETG",
-            "liner_front": "TPU95A", "liner_back": "TPU95A"}
-DECK_TOP = BedLead(1.0, 3.0)  # the top face prints on the bed
-DECK_UNDER = Roll(4.0)
-RING_BOTTOM = Roll(3.5)
-RING_TOP = Roll(1.0)  # buried in the deck
-# No barrel on the collar: the seam faces are walls of the same skin, and a bulge there
-# would close the seam before the 2.0 gap and crush the liner ribs.
-DECK_BULGE = 0.0
-RING_BULGE = 0.0
-RING_BACK_SETBACK = 6.5
-RING_SEAM_SETBACK = 8.0  # radius 3.8 clears the 3.5 roll; keeps 1.6 round the z 10 inserts
-RING_BACK_Y = 37.0  # behind the bore, under the pad root: the taper fits both corners
+            "liner_front": "TPU95A", "liner_back": "TPU95A",
+            **{f"seam_cap_{k}": "TPU95A" for k in range(1, 5)}}
+TOP = BedLead(1.0, 3.0)  # the top face prints on the bed
+BOTTOM = Roll(6.0)
+FRONT_CORNER = (16.0, 14.0)  # quarter ellipse: along the front, up the side
+BACK_START = 36.0  # the half-ellipse back starts here: behind the seam counterbore mouths
+PLAN_TRIM = 3.0
+SEAM_SPRINGS = 6
+SEAM_TARGET = 0.75  # at liner contact, nominal column
+SEAM_L1 = 35.0
 LINER_END_GAP = 0.15
 LINER_OUTER_GAP = 0.05
 RIB_OVERLAP = 0.05
+CAP_PRESS = 0.1  # the TPU cap is this much over the counterbore, a side: a press fit
+CAP_ROOM = 1.4  # cap to screw head: the head moves 1.05 toward it over the seam travel
+KNOB_ROOM = 1.2  # the pivot knob turns in a recess this much wider than the knob
+UP = Vector(0, 0, -1)  # print-up in the use frame: the shells print top face down
+CLAMP_SHIFT = 0.25 - 0.02  # each shell moves this far toward the other at liner contact
 
 
 def column_profile(spec: Params, grow: float, z: float = 0.0) -> Face:
@@ -85,57 +85,38 @@ def column_profile(spec: Params, grow: float, z: float = 0.0) -> Face:
     return Pos(0, 0, z) * face
 
 
-def pad_end_y(spec: Params) -> float:
-    return spec.mf_y + spec.mf_size / 2
+# --- Plan --------------------------------------------------------------------------------------
 
 
-def _mirror(right: list[tuple[float, float]], setbacks: list[float]):
-    """Right side listed from the seam up; the left side mirrors it back down."""
-    vertices = right + [(-x, y) for x, y in reversed(right)]
-    return vertices, setbacks + setbacks[::-1]
+def plan_turtle(spec: Params) -> Turtle:
+    """The whole plan, counter-clockwise from the front-right corner: a straight front, quarter
+    ellipse corners, straight sides, and a half-ellipse back that carries the pan pivot."""
+    hw, hd = spec.outer_half_w, spec.outer_half_d
+    along, up = FRONT_CORNER
+    back = tail_y(spec) - BACK_START
+    path = Turtle((hw - along, -hd), 0.0)
+    path.ellipse(along, up, 90)
+    path.line(BACK_START - (-hd + up))
+    path.ellipse(back, hw, 90)
+    path.ellipse(hw, back, 90)
+    path.line(BACK_START - (-hd + up))
+    path.ellipse(up, along, 90)
+    path.line(2 * (hw - along))
+    return path
 
 
-def deck_plan(spec: Params, sign: float) -> object:
-    """Deck outline of one shell: the front half (sign -1), or the back half with neck and pad."""
-    hw, hd, gap = spec.outer_half_w, spec.outer_half_d, spec.seam_gap / 2
-    if sign < 0:
-        vertices = [(hw, -hd), (hw, -gap), (-hw, -gap), (-hw, -hd)]
-        setbacks = [spec.front_setback, spec.seam_setback, spec.seam_setback, spec.front_setback]
-        return soft_outline(vertices, setbacks)
-    pad = spec.mf_size / 2
-    right = [(hw, gap), (hw, spec.taper_start_y), (pad, spec.neck_y), (pad, pad_end_y(spec))]
-    return soft_outline(*_mirror(right, [spec.seam_setback, spec.taper_setback,
-                                         spec.taper_setback, spec.mf_setback]))
+def tail_y(spec: Params) -> float:
+    return spec.pivot_y + spec.pivot_r
 
 
-def ring_plan(spec: Params, sign: float) -> object:
-    """The lower ring, ring_inset inside the deck. At the back it follows the deck taper and
-    closes behind the bore, so the MF pad overhangs it."""
-    inset = spec.ring_inset
-    hw, hd, gap = spec.outer_half_w - inset, spec.outer_half_d - inset, spec.seam_gap / 2
-    seam = RING_SEAM_SETBACK
-    if sign < 0:
-        vertices = [(hw, -hd), (hw, -gap), (-hw, -gap), (-hw, -hd)]
-        return soft_outline(vertices, [spec.front_setback - inset, seam, seam,
-                                       spec.front_setback - inset])
-    start = Vector(spec.outer_half_w, spec.taper_start_y)
-    along = (Vector(spec.mf_size / 2, spec.neck_y) - start).normalized()
-    inward = Vector(-along.Y, along.X)
-    base = start + inward * inset
-    side = base + along * ((hw - base.X) / along.X)
-    back = base + along * ((RING_BACK_Y - base.Y) / along.Y)
-    right = [(hw, gap), (side.X, side.Y), (back.X, back.Y)]
-    return soft_outline(*_mirror(right, [seam, spec.taper_setback - inset, RING_BACK_SETBACK]))
+def plan(spec: Params) -> Wire:
+    return Wire(plan_turtle(spec).soft(PLAN_TRIM, closed=True))
 
 
-def shell_skins(spec: Params, sign: float) -> tuple[Part, Part]:
-    """(deck, ring) of one shell, before they are fused and cut."""
-    deck_h = spec.collar_h - spec.deck_z
-    deck = Pos(0, 0, spec.deck_z) * g2_skin(deck_plan(spec, sign), deck_h, DECK_UNDER,
-                                            DECK_TOP, DECK_BULGE)
-    ring_h = spec.deck_z + DECK_UNDER.setback
-    ring = g2_skin(ring_plan(spec, sign), ring_h, RING_BOTTOM, RING_TOP, RING_BULGE)
-    return deck, ring
+@cache
+def skin(spec: Params) -> Part:
+    """The uncut body: one profile swept round the plan."""
+    return g2_skin(plan(spec), spec.collar_h, BOTTOM, TOP, spec.collar_bulge)
 
 
 def cavity(spec: Params) -> Part:
@@ -152,74 +133,116 @@ def cavity(spec: Params) -> Part:
     return through + loft(sections, ruled=True)
 
 
-def blank(spec: Params, sign: float) -> Part:
-    deck, ring = shell_skins(spec, sign)
-    return (deck + ring) - cavity(spec)
+def _half(body: Part, sign: float, spec: Params) -> Part:
+    """The front (sign -1) or back half of a body split by the seam gap."""
+    gap, reach = spec.seam_gap / 2, 200
+    return body & box_from(-reach, sign * gap, -1, reach, sign * reach, spec.collar_h + 1)
+
+
+# --- Seam stops --------------------------------------------------------------------------------
+
+
+def seam_stop() -> StopSpec:
+    return StopSpec("seam", SHOULDER_M5, SPRING_C14, SEAM_SPRINGS, None, WASHER_M8,
+                    INSERT_M5, SEAM_TARGET, SEAM_L1)
 
 
 def seam_points(spec: Params) -> list[tuple[float, float]]:
     return [(sign * spec.seam_x, z) for z in spec.seam_z for sign in (-1.0, 1.0)]
 
 
+def contact_gap(spec: Params) -> float:
+    """Seam gap when both liners just touch the column."""
+    return spec.seam_gap - 2 * CLAMP_SHIFT
+
+
+def seam_seat_y(spec: Params) -> float:
+    """Back shell seat (part frame) that puts the stop at its design length at contact."""
+    insert_top = -spec.seam_gap / 2 - 0.2 + CLAMP_SHIFT  # front shell moved toward the back
+    return insert_top + seam_stop().clamped + CLAMP_SHIFT
+
+
+def seam_stops(spec: Params) -> list[Placed]:
+    """The four seam stops in the hero frame (shells closed to liner contact). The axis
+    runs from the head (back) toward the insert (front)."""
+    y = seam_seat_y(spec) - CLAMP_SHIFT
+    return [Placed(seam_stop(), Vector(x, y, z), Vector(0, -1, 0)) for x, z in seam_points(spec)]
+
+
 def seam_inserts(spec: Params) -> list[SeatedInsert]:
-    """One insert per seam screw, pressed into the back shell from its seam face."""
-    face_y = spec.seam_gap / 2
-    return [SeatedInsert(f"seam ({x:+.1f}, z {z:g})", M3_INSERT, Vector(x, face_y, z),
-                         Vector(0, 1, 0), spec.seam_tip_room, M3_CLEAR)
-            for x, z in seam_points(spec)]
+    """The inserts in the front shell's part frame, pressed from its seam face."""
+    face_y = -spec.seam_gap / 2
+    return [SeatedInsert(f"seam ({x:+.1f}, z {z:g})", INSERT_M5, Vector(x, face_y, z),
+                         Vector(0, -1, 0), 0.8) for x, z in seam_points(spec)]
 
 
-def seam_grip_open(spec: Params) -> float:
-    """Under the head to the back seam face, seam open: washer, front shell, seam gap."""
-    return M3_WASHER.t + (-spec.seam_gap / 2 - spec.seam_seat_y) + spec.seam_gap
+def seam_bore(spec: Params, x: float, z: float) -> Part:
+    """Counterbore for the seat washer, springs and head, from the seat out the back."""
+    return flat_teardrop_rod(spec.seam_bore_d, 40.0, Vector(x, seam_seat_y(spec), z),
+                             (0, 1, 0), UP)
 
 
-def seam_screw_length(spec: Params) -> float:
-    need = seam_grip_open(spec) + INSERT_SINK + INSERT_ENGAGE + M3_SHCS.length_tol
-    return M3_SHCS.stock_at_least(need)
+def seam_cap(spec: Params, x: float, z: float) -> Part:
+    """TPU cover for a seam counterbore, cut from the collar's own skin: flush, so the back
+    reads as one surface. It sits clear of the screw head over the whole seam travel."""
+    stop = seam_stop()
+    inner = seam_seat_y(spec) + stop.above_seat + stop.screw.head_k + CAP_ROOM
+    plug = flat_teardrop_rod(spec.seam_bore_d + 2 * CAP_PRESS, 60.0, Vector(x, inner, z),
+                             (0, 1, 0), UP)
+    return plug & skin(spec)
 
 
-def mount_face(spec: Params) -> MountFace:
-    """Collar MF: the port nut slides in from the bore toward +Y, so the mouth is -Y."""
-    centre = Vector(0, spec.mf_y, spec.collar_h)
-    reach = spec.mf_y - bore_wall_y(spec, 0.0) + 1.5
-    return MountFace("collar MF", centre, Vector(0, -1, 0), reach)
+def seam_caps(spec: Params) -> list[Part]:
+    return [named(seam_cap(spec, x, z), f"seam_cap_{k + 1}")
+            for k, (x, z) in enumerate(seam_points(spec))]
 
 
-def bore_wall_y(spec: Params, x: float) -> float:
-    """Y of the back bore wall at plan x."""
-    flat = spec.bore_half_w - spec.bore_r
-    if abs(x) <= flat:
-        return spec.bore_half_d
-    centre_y = spec.bore_half_d - spec.bore_r
-    return centre_y + sqrt(max(spec.bore_r ** 2 - (abs(x) - flat) ** 2, 0.0))
+def checks_cap(part: Part, spec: Params) -> list[Check]:
+    rows = [one_solid(part)]
+    rows += overhang_rows(print_orientation(part, PRINT["seam_cap_1"]), part.label)
+    depth = part.bounding_box().size.Y
+    rows.append(at_least(f"{part.label} grip length in its counterbore", depth, 3.0))
+    return rows
 
 
-def spine_root_y(spec: Params) -> float:
-    """Where the pad leaves the ring: just behind the ring's back wall."""
-    return spec.outer_half_d - spec.ring_inset + 1.0
+def seam_shank(spec: Params, x: float, z: float) -> Part:
+    d = SHOULDER_M5.shoulder_d + SHOULDER_CLEAR
+    start = Vector(x, spec.seam_gap / 2 - 1.0, z)
+    return teardrop_rod(d, seam_seat_y(spec) - start.Y + 1.0, start, (0, 1, 0), UP)
+
+
+# --- Pan pivot ---------------------------------------------------------------------------------
+
+
+def pivot_cutters(spec: Params, seat_z: float, spot: float, recess_d: float) -> list[Part]:
+    """Shoulder bore up through the tail, the seat washer's spot face, the knob recess."""
+    x, y = 0.0, spec.pivot_y
+    return [rod(8.4, spec.collar_h + 2, (x, y, -1), (0, 0, 1)),
+            rod(WASHER_M8.outer + 0.4, spot + 0.01, (x, y, seat_z - spot), (0, 0, 1)),
+            rod(recess_d, seat_z - spot + 1, (x, y, -1), (0, 0, 1))]
+
+
+# --- Build ---------------------------------------------------------------------------------------
+
+
+def pivot_seat_z(spec: Params) -> float:
+    """Seat washer face under the tail: the pivot stop's clamped length below the insert
+    top, which sits INSERT_SINK into the pedestal resting MODEL_GAP above the collar."""
+    return spec.collar_h + MODEL_GAP + INSERT_SINK - pivot_stop().clamped
 
 
 def build_shells(spec: Params) -> tuple[Part, Part]:
-    front, back = blank(spec, -1.0), blank(spec, 1.0)
-    head_d, _ = M3_WASHER_BORE
-    seat_y = spec.seam_seat_y
-    for x, z in seam_points(spec):
-        front -= rod(M3_CLEAR, -seat_y + 1, Vector(x, seat_y - 0.5, z), Vector(0, 1, 0))
-        front -= teardrop_rod(head_d, 40, Vector(x, seat_y, z), Vector(0, -1, 0),
-                              Vector(0, 0, -1))
+    body = skin(spec) - cavity(spec)
+    front, back = _half(body, -1.0, spec), _half(body, 1.0, spec)
     for insert in seam_inserts(spec):
         for cutter in insert.cutters():
-            back -= cutter
-    for cutter in mount_face(spec).cutters(spec):
+            front -= cutter
+    for x, z in seam_points(spec):
+        back -= seam_bore(spec, x, z)
+        back -= seam_shank(spec, x, z)
+    for cutter in pivot_cutters(spec, pivot_seat_z(spec), SPOT, knob_d(spec) + KNOB_ROOM):
         back -= cutter
     return named(front, "collar_front"), named(back, "collar_back")
-
-
-def _half(body: Part, sign: float, spec: Params) -> Part:
-    """The front (sign -1) or back half of a body split by the seam gap."""
-    gap, reach = spec.seam_gap / 2, 200
-    return body & box_from(-reach, sign * gap, -1, reach, sign * reach, spec.collar_h + 1)
 
 
 def build_liners(spec: Params) -> tuple[Part, Part]:
@@ -265,45 +288,49 @@ def rib_bases(spec: Params, z0: float, z1: float) -> list[float]:
 # --- Checks ------------------------------------------------------------------------------------
 
 
-def _skin_checks(spec: Params, sign: float, label: str) -> list[Check]:
-    """Each skin on its own: every edge G2 except the bed lead crease on the top face."""
-    deck, ring = shell_skins(spec, sign)
+def _form_rows(part: Part, spec: Params, label: str) -> list[Check]:
     on_bed = lambda centre: abs(centre.Z - spec.collar_h) < 1e-4  # noqa: E731
-    rows = skin_rows(deck, f"{label} deck", on_bed)
-    rows += skin_rows(ring, f"{label} ring", lambda _centre: False)
-    jump = max(curvature_jumps(deck_plan(spec, sign)) + curvature_jumps(ring_plan(spec, sign)))
-    rows.append(Check(f"{label} plan outline curvature jump (G2)", jump <= 1e-3,
+    rows = skin_rows(part, label, on_bed, skin(spec))
+    jump = max(curvature_jumps(plan(spec)))
+    rows.append(Check(f"{label} plan curvature jump (G2)", jump <= 1e-3,
                       f"{jump:.2e} /mm (max 1e-3)"))
+    hw, back = spec.outer_half_w, tail_y(spec) - BACK_START
+    smallest = min(FRONT_CORNER[1] ** 2 / FRONT_CORNER[0], back ** 2 / hw, hw ** 2 / back)
+    rows.append(at_least(f"{label} smallest convex plan radius over the bottom roll",
+                         smallest, BOTTOM.setback + 0.5))
     return rows
 
 
 def checks_front(part: Part, spec: Params) -> list[Check]:
     rows = [one_solid(part)]
     rows += overhang_rows(print_orientation(part, PRINT["collar_front"]), "collar_front")
-    rows += _skin_checks(spec, -1.0, "collar_front")
-    head_d, head_h = M3_WASHER_BORE
-    for x, z in seam_points(spec):
-        axis = Vector(0, -1, 0)
-        origin = Vector(x, spec.seam_seat_y, z)
-        probe = teardrop_ring(head_d, PETG_WALL, head_h + 0.3, origin, axis, Vector(0, 0, -1))
-        rows.append(encloses(part, probe, f"seam head bore ({x:+.1f}, z {z:g}) wall"))
-        shank = ring_probe(Vector(x, -spec.seam_gap / 2 - 0.4, z), axis, M3_CLEAR / 2,
-                           PETG_WALL, 0.0, -spec.seam_gap / 2 - spec.seam_seat_y - 0.8)
-        rows.append(encloses(part, shank, f"seam shank ({x:+.1f}, z {z:g}) wall"))
-        seat = annulus_footprint(origin, Vector(0, 1, 0), M3_WASHER.outer, M3_WASHER.inner)
-        rows.append(bearing_row(f"seam ({x:+.1f}, z {z:g}) washer", PRELOAD_N["m3"],
-                                contact_area(part, seat)))
+    rows += _form_rows(part, spec, "collar_front")
+    for insert in seam_inserts(spec):
+        rows += insert.checks(part)
     return rows
 
 
 def checks_back(part: Part, spec: Params) -> list[Check]:
     rows = [one_solid(part)]
     rows += overhang_rows(print_orientation(part, PRINT["collar_back"]), "collar_back")
-    rows += _skin_checks(spec, 1.0, "collar_back")
-    for insert in seam_inserts(spec):
-        rows += insert.checks(part)
-    rows.append(insert_shear_row("seam", M3_INSERT, PRELOAD_N["m3"]))
-    rows += mount_face(spec).checks(part, spec)
+    rows += _form_rows(part, spec, "collar_back")
+    bore = cavity(spec)
+    for x, z in seam_points(spec):
+        where = f"({x:+.1f}, z {z:g})"
+        rows.append(at_least(f"seam counterbore {where} wall to the bore",
+                             seam_bore(spec, x, z).distance_to(bore), PETG_WALL))
+        rows.append(at_least(f"seam shoulder bore {where} wall to the bore",
+                             seam_shank(spec, x, z).distance_to(bore), PETG_WALL))
+    low, high = spec.seam_z
+    rows.append(at_least("PETG between the two seam counterbores",
+                         high - low - spec.seam_bore_d, PETG_WALL))
+    rows.append(at_least("PETG under the lower seam counterbore",
+                         low - spec.seam_bore_d / 2, PETG_WALL))
+    rows.append(at_least("PETG over the upper seam counterbore",
+                         spec.collar_h - high - spec.seam_bore_d / 2, PETG_WALL))
+    pivot = rod(8.4, spec.collar_h, (0, spec.pivot_y, 0), (0, 0, 1))
+    rows.append(at_least("pivot bore wall to the column bore", pivot.distance_to(bore),
+                         PETG_WALL))
     return rows
 
 
@@ -317,10 +344,11 @@ def checks_liner(part: Part, spec: Params) -> list[Check]:
 
 def checks_pair(front: Part, back: Part, liners: tuple[Part, Part], column: Part,
                 spec: Params) -> list[Check]:
-    rows = [at_least("seam gap between the shells", front.distance_to(back),
-                     spec.seam_gap - 0.05)]
+    """In the hero the shells are closed to liner contact: rib tips 0.02 off the column."""
+    rows = [at_least("seam gap at liner contact", front.distance_to(back),
+                     contact_gap(spec) - 0.05)]
     for liner in liners:
         gap = liner.distance_to(column)
-        rows.append(Check(f"{liner.label} rib tips to column", abs(gap - spec.tpu_fit) <= 0.02,
-                          f"{gap:.3f} mm (fit {spec.tpu_fit} +- 0.02)"))
+        rows.append(Check(f"{liner.label} rib tips at the column (contact)",
+                          abs(gap - 0.02) <= 0.01, f"{gap:.3f} mm (0.02 +- 0.01)"))
     return rows

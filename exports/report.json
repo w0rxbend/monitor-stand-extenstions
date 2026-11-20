@@ -1,14 +1,14 @@
 {
- "src_sha256": "31ae320f903697cc86bcba9510f949d3bd002d5674981f2bea340a9d76ecc61c",
+ "src_sha256": "1fe8e9ff9073cd23176a4a01c2c6dd0ff6b866c1354780d7c5a980bd290501d1",
  "passed": true,
- "checks": 461,
+ "checks": 282,
  "failed": 0,
  "rows": [
   {
    "section": "collar_front",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 40828.5 mm3, valid=True"
+   "measured": "1 solid, 59246.7 mm3, valid=True"
   },
   {
    "section": "collar_front",
@@ -18,111 +18,81 @@
   },
   {
    "section": "collar_front",
-   "name": "collar_front deck skin: normal step at every join (64 edges)",
+   "name": "collar_front surface: normal step at every join (68 surface joins, 92 feature edges)",
    "ok": true,
-   "measured": "5.327e-11 deg (max 0.5)"
+   "measured": "0.004484 deg (max 0.5)"
   },
   {
    "section": "collar_front",
-   "name": "collar_front deck skin: curvature step at every join",
+   "name": "collar_front surface: curvature step at every join",
    "ok": true,
-   "measured": "5.184e-12 /mm (max 0.002)"
+   "measured": "5.25e-07 /mm (max 0.002)"
   },
   {
    "section": "collar_front",
-   "name": "collar_front ring skin: normal step at every join (56 edges)",
+   "name": "collar_front plan curvature jump (G2)",
    "ok": true,
-   "measured": "2.687e-11 deg (max 0.5)"
+   "measured": "9.02e-16 /mm (max 1e-3)"
   },
   {
    "section": "collar_front",
-   "name": "collar_front ring skin: curvature step at every join",
+   "name": "collar_front smallest convex plan radius over the bottom roll",
    "ok": true,
-   "measured": "2.603e-12 /mm (max 0.002)"
+   "measured": "12.250 mm (min 6.5)"
   },
   {
    "section": "collar_front",
-   "name": "collar_front plan outline curvature jump (G2)",
-   "ok": true,
-   "measured": "0.00e+00 /mm (max 1e-3)"
-  },
-  {
-   "section": "collar_front",
-   "name": "seam head bore (-27.1, z 10) wall",
+   "name": "seam (-29.3, z 10) insert wall >= 2.6",
    "ok": true,
    "measured": "0.0000 mm3 of the wall probe is missing"
   },
   {
    "section": "collar_front",
-   "name": "seam shank (-27.1, z 10) wall",
+   "name": "seam (-29.3, z 10) insert hole depth (blind)",
+   "ok": true,
+   "measured": "10.500 mm (range 10..10.55)"
+  },
+  {
+   "section": "collar_front",
+   "name": "seam (+29.3, z 10) insert wall >= 2.6",
    "ok": true,
    "measured": "0.0000 mm3 of the wall probe is missing"
   },
   {
    "section": "collar_front",
-   "name": "seam (-27.1, z 10) washer bearing at 80 N on 29.4 mm2",
+   "name": "seam (+29.3, z 10) insert hole depth (blind)",
    "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
+   "measured": "10.500 mm (range 10..10.55)"
   },
   {
    "section": "collar_front",
-   "name": "seam head bore (+27.1, z 10) wall",
+   "name": "seam (-29.3, z 28) insert wall >= 2.6",
    "ok": true,
    "measured": "0.0000 mm3 of the wall probe is missing"
   },
   {
    "section": "collar_front",
-   "name": "seam shank (+27.1, z 10) wall",
+   "name": "seam (-29.3, z 28) insert hole depth (blind)",
+   "ok": true,
+   "measured": "10.500 mm (range 10..10.55)"
+  },
+  {
+   "section": "collar_front",
+   "name": "seam (+29.3, z 28) insert wall >= 2.6",
    "ok": true,
    "measured": "0.0000 mm3 of the wall probe is missing"
   },
   {
    "section": "collar_front",
-   "name": "seam (+27.1, z 10) washer bearing at 80 N on 29.4 mm2",
+   "name": "seam (+29.3, z 28) insert hole depth (blind)",
    "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "collar_front",
-   "name": "seam head bore (-27.1, z 30) wall",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "collar_front",
-   "name": "seam shank (-27.1, z 30) wall",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "collar_front",
-   "name": "seam (-27.1, z 30) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "collar_front",
-   "name": "seam head bore (+27.1, z 30) wall",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "collar_front",
-   "name": "seam shank (+27.1, z 30) wall",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "collar_front",
-   "name": "seam (+27.1, z 30) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
+   "measured": "10.500 mm (range 10..10.55)"
   },
   {
    "section": "collar_back",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 79041.3 mm3, valid=True"
+   "measured": "1 solid, 122542.2 mm3, valid=True"
   },
   {
    "section": "collar_back",
@@ -132,207 +102,99 @@
   },
   {
    "section": "collar_back",
-   "name": "collar_back deck skin: normal step at every join (128 edges)",
+   "name": "collar_back surface: normal step at every join (56 surface joins, 179 feature edges)",
    "ok": true,
-   "measured": "9.51e-11 deg (max 0.5)"
+   "measured": "0.0007501 deg (max 0.5)"
   },
   {
    "section": "collar_back",
-   "name": "collar_back deck skin: curvature step at every join",
+   "name": "collar_back surface: curvature step at every join",
    "ok": true,
-   "measured": "7.239e-12 /mm (max 0.002)"
+   "measured": "2.36e-07 /mm (max 0.002)"
   },
   {
    "section": "collar_back",
-   "name": "collar_back ring skin: normal step at every join (84 edges)",
+   "name": "collar_back plan curvature jump (G2)",
    "ok": true,
-   "measured": "2.587e-11 deg (max 0.5)"
+   "measured": "9.02e-16 /mm (max 1e-3)"
   },
   {
    "section": "collar_back",
-   "name": "collar_back ring skin: curvature step at every join",
+   "name": "collar_back smallest convex plan radius over the bottom roll",
    "ok": true,
-   "measured": "2.63e-12 /mm (max 0.002)"
+   "measured": "12.250 mm (min 6.5)"
   },
   {
    "section": "collar_back",
-   "name": "collar_back plan outline curvature jump (G2)",
+   "name": "seam counterbore (-29.3, z 10) wall to the bore",
    "ok": true,
-   "measured": "0.00e+00 /mm (max 1e-3)"
+   "measured": "4.154 mm (min 1.5)"
   },
   {
    "section": "collar_back",
-   "name": "seam (-27.1, z 10) insert wall >= 1.6",
+   "name": "seam shoulder bore (-29.3, z 10) wall to the bore",
    "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
+   "measured": "2.700 mm (min 1.5)"
   },
   {
    "section": "collar_back",
-   "name": "seam (-27.1, z 10) insert hole depth",
+   "name": "seam counterbore (+29.3, z 10) wall to the bore",
    "ok": true,
-   "measured": "10.000 mm (min 6.2)"
+   "measured": "4.154 mm (min 1.5)"
   },
   {
    "section": "collar_back",
-   "name": "seam (+27.1, z 10) insert wall >= 1.6",
+   "name": "seam shoulder bore (+29.3, z 10) wall to the bore",
    "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
+   "measured": "2.700 mm (min 1.5)"
   },
   {
    "section": "collar_back",
-   "name": "seam (+27.1, z 10) insert hole depth",
+   "name": "seam counterbore (-29.3, z 28) wall to the bore",
    "ok": true,
-   "measured": "10.000 mm (min 6.2)"
+   "measured": "4.154 mm (min 1.5)"
   },
   {
    "section": "collar_back",
-   "name": "seam (-27.1, z 30) insert wall >= 1.6",
+   "name": "seam shoulder bore (-29.3, z 28) wall to the bore",
    "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
+   "measured": "2.700 mm (min 1.5)"
   },
   {
    "section": "collar_back",
-   "name": "seam (-27.1, z 30) insert hole depth",
+   "name": "seam counterbore (+29.3, z 28) wall to the bore",
    "ok": true,
-   "measured": "10.000 mm (min 6.2)"
+   "measured": "4.154 mm (min 1.5)"
   },
   {
    "section": "collar_back",
-   "name": "seam (+27.1, z 30) insert wall >= 1.6",
+   "name": "seam shoulder bore (+29.3, z 28) wall to the bore",
    "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
+   "measured": "2.700 mm (min 1.5)"
   },
   {
    "section": "collar_back",
-   "name": "seam (+27.1, z 30) insert hole depth",
+   "name": "PETG between the two seam counterbores",
    "ok": true,
-   "measured": "10.000 mm (min 6.2)"
+   "measured": "1.600 mm (min 1.5)"
   },
   {
    "section": "collar_back",
-   "name": "seam insert pull-out shear at 80 N",
+   "name": "PETG under the lower seam counterbore",
    "ok": true,
-   "measured": "0.9712 MPa (max 1.09697)"
+   "measured": "1.800 mm (min 1.5)"
   },
   {
    "section": "collar_back",
-   "name": "collar MF 1/4\" nut nut travel",
+   "name": "PETG over the upper seam counterbore",
    "ok": true,
-   "measured": "0.00e+00 mm3 of PETG in the max nut's path"
+   "measured": "3.800 mm (min 1.5)"
   },
   {
    "section": "collar_back",
-   "name": "collar MF 1/4\" nut channel width",
+   "name": "pivot bore wall to the column bore",
    "ok": true,
-   "measured": "11.450 mm (min 11.28)"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF 1/4\" nut resting nut play toward the mouth",
-   "ok": true,
-   "measured": "0.1855 mm (max 0.5)"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF 1/4\" nut side wall >= 1.5",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF 1/4\" nut roof >= 1.5",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 (-10,-10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 (-10,-10) insert hole depth",
-   "ok": true,
-   "measured": "6.400 mm (min 6.2)"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 (-10,-10) insert to the 1/4\" channel",
-   "ok": true,
-   "measured": "1.985 mm (min 1.6)"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 (+10,-10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 (+10,-10) insert hole depth",
-   "ok": true,
-   "measured": "6.400 mm (min 6.2)"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 (+10,-10) insert to the 1/4\" channel",
-   "ok": true,
-   "measured": "1.985 mm (min 1.6)"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 (-10,+10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 (-10,+10) insert hole depth",
-   "ok": true,
-   "measured": "6.400 mm (min 6.2)"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 (-10,+10) insert to the 1/4\" channel",
-   "ok": true,
-   "measured": "5.647 mm (min 1.6)"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 (+10,+10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 (+10,+10) insert hole depth",
-   "ok": true,
-   "measured": "6.400 mm (min 6.2)"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 (+10,+10) insert to the 1/4\" channel",
-   "ok": true,
-   "measured": "5.647 mm (min 1.6)"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF M3 insert pull-out shear at 80 N",
-   "ok": true,
-   "measured": "0.9712 MPa (max 1.09697)"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF 1/4\" port nut bearing at 236 N on 67.9 mm2",
-   "ok": true,
-   "measured": "3.475 MPa (max 3.85)"
-  },
-  {
-   "section": "collar_back",
-   "name": "collar MF 1/4\" tip floor wall",
-   "ok": true,
-   "measured": "1.500 mm (min 1.5)"
+   "measured": "17.000 mm (min 1.5)"
   },
   {
    "section": "liner_front",
@@ -374,7 +236,7 @@
    "section": "arm_base",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 19494.1 mm3, valid=True"
+   "measured": "1 solid, 24521.1 mm3, valid=True"
   },
   {
    "section": "arm_base",
@@ -384,87 +246,45 @@
   },
   {
    "section": "arm_base",
-   "name": "foot (-10,-10) under the washer",
+   "name": "arm_base surface: normal step at every join (26 surface joins, 527 feature edges)",
    "ok": true,
-   "measured": "4.200 mm (min 4.19)"
+   "measured": "4.039e-13 deg (max 0.5)"
   },
   {
    "section": "arm_base",
-   "name": "foot (-10,-10) washer bearing at 80 N on 29.4 mm2",
+   "name": "arm_base surface: curvature step at every join",
    "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
+   "measured": "7.161e-14 /mm (max 0.002)"
   },
   {
    "section": "arm_base",
-   "name": "foot (+10,-10) under the washer",
+   "name": "arm_base profile curvature jump (G2)",
    "ok": true,
-   "measured": "4.200 mm (min 4.19)"
+   "measured": "7.13e-14 /mm (max 1e-3)"
   },
   {
    "section": "arm_base",
-   "name": "foot (+10,-10) washer bearing at 80 N on 29.4 mm2",
+   "name": "pan pivot insert wall >= 3.3",
    "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
+   "measured": "0.0000 mm3 of the wall probe is missing"
   },
   {
    "section": "arm_base",
-   "name": "foot (-10,+10) under the washer",
+   "name": "pan pivot insert hole depth (blind)",
    "ok": true,
-   "measured": "4.200 mm (min 4.19)"
+   "measured": "13.400 mm (range 13.2..13.45)"
   },
   {
    "section": "arm_base",
-   "name": "foot (-10,+10) washer bearing at 80 N on 29.4 mm2",
+   "name": "arm_base neck radius",
    "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "arm_base",
-   "name": "foot (+10,+10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "arm_base",
-   "name": "foot (+10,+10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "arm_base",
-   "name": "arm_base foot skin: normal step at every join (64 edges)",
-   "ok": true,
-   "measured": "9.378e-12 deg (max 0.5)"
-  },
-  {
-   "section": "arm_base",
-   "name": "arm_base foot skin: curvature step at every join",
-   "ok": true,
-   "measured": "6.611e-13 /mm (max 0.002)"
-  },
-  {
-   "section": "arm_base",
-   "name": "arm_base upright skin: normal step at every join (56 edges)",
-   "ok": true,
-   "measured": "2.614e-11 deg (max 0.5)"
-  },
-  {
-   "section": "arm_base",
-   "name": "arm_base upright skin: curvature step at every join",
-   "ok": true,
-   "measured": "8.332e-12 /mm (max 0.002)"
-  },
-  {
-   "section": "arm_base",
-   "name": "J1 carriage dome on arm_base bearing at 400 N on 141.5 mm2",
-   "ok": true,
-   "measured": "2.827 MPa (max 3.85)"
+   "measured": "11.781 mm (min 11)"
   },
   {
    "section": "arm_link",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 20986.8 mm3, valid=True"
+   "measured": "1 solid, 33738.6 mm3, valid=True"
   },
   {
    "section": "arm_link",
@@ -474,45 +294,111 @@
   },
   {
    "section": "arm_link",
-   "name": "arm_link skin: normal step at every join (64 edges)",
+   "name": "arm_link surface: normal step at every join (64 surface joins, 970 feature edges)",
    "ok": true,
-   "measured": "0.003192 deg (max 0.5)"
+   "measured": "0.003131 deg (max 0.5)"
   },
   {
    "section": "arm_link",
-   "name": "arm_link skin: curvature step at every join",
+   "name": "arm_link surface: curvature step at every join",
    "ok": true,
-   "measured": "6.77e-09 /mm (max 0.002)"
+   "measured": "5.821e-09 /mm (max 0.002)"
   },
   {
    "section": "arm_link",
    "name": "arm_link plan curvature jump (G2)",
    "ok": true,
-   "measured": "4.86e-16 /mm"
+   "measured": "5.55e-16 /mm"
   },
   {
    "section": "arm_link",
-   "name": "arm_link waist width",
+   "name": "end A insert wall >= 3.3",
    "ok": true,
-   "measured": "20.000 mm (min 20)"
+   "measured": "0.0000 mm3 of the wall probe is missing"
   },
   {
    "section": "arm_link",
-   "name": "knob washer on arm_link bearing at 400 N on 220.3 mm2",
+   "name": "end A insert hole depth (blind)",
    "ok": true,
-   "measured": "1.816 MPa (max 3.85)"
+   "measured": "13.400 mm (range 13.2..13.45)"
   },
   {
    "section": "arm_link",
-   "name": "carriage dome on arm_link bearing at 400 N on 141.5 mm2",
+   "name": "arm_link PETG under the end A insert hole",
    "ok": true,
-   "measured": "2.827 MPa (max 3.85)"
+   "measured": "1.659 mm (min 0.6)"
+  },
+  {
+   "section": "arm_link",
+   "name": "end B insert wall >= 3.3",
+   "ok": true,
+   "measured": "0.0000 mm3 of the wall probe is missing"
+  },
+  {
+   "section": "arm_link",
+   "name": "end B insert hole depth (blind)",
+   "ok": true,
+   "measured": "13.400 mm (range 13.2..13.45)"
+  },
+  {
+   "section": "arm_link",
+   "name": "arm_link PETG under the end B insert hole",
+   "ok": true,
+   "measured": "1.659 mm (min 0.6)"
+  },
+  {
+   "section": "arm_tip",
+   "name": "one solid",
+   "ok": true,
+   "measured": "1 solid, 33190.2 mm3, valid=True"
+  },
+  {
+   "section": "arm_tip",
+   "name": "arm_tip: overhang <= 45 deg or bridge <= 10 mm",
+   "ok": true,
+   "measured": "none"
+  },
+  {
+   "section": "arm_tip",
+   "name": "arm_tip surface: normal step at every join (64 surface joins, 491 feature edges)",
+   "ok": true,
+   "measured": "0.003131 deg (max 0.5)"
+  },
+  {
+   "section": "arm_tip",
+   "name": "arm_tip surface: curvature step at every join",
+   "ok": true,
+   "measured": "5.821e-09 /mm (max 0.002)"
+  },
+  {
+   "section": "arm_tip",
+   "name": "arm_tip plan curvature jump (G2)",
+   "ok": true,
+   "measured": "5.55e-16 /mm"
+  },
+  {
+   "section": "arm_tip",
+   "name": "end B insert wall >= 3.3",
+   "ok": true,
+   "measured": "0.0000 mm3 of the wall probe is missing"
+  },
+  {
+   "section": "arm_tip",
+   "name": "end B insert hole depth (blind)",
+   "ok": true,
+   "measured": "13.400 mm (range 13.2..13.45)"
+  },
+  {
+   "section": "arm_tip",
+   "name": "arm_tip PETG under the end B insert hole",
+   "ok": true,
+   "measured": "1.659 mm (min 0.6)"
   },
   {
    "section": "arm_head",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 33603.5 mm3, valid=True"
+   "measured": "1 solid, 40876.2 mm3, valid=True"
   },
   {
    "section": "arm_head",
@@ -522,159 +408,45 @@
   },
   {
    "section": "arm_head",
-   "name": "arm_head knuckle skin: normal step at every join (56 edges)",
+   "name": "arm_head surface: normal step at every join (194 surface joins, 40 feature edges)",
    "ok": true,
-   "measured": "3.676e-11 deg (max 0.5)"
+   "measured": "0.01151 deg (max 0.5)"
   },
   {
    "section": "arm_head",
-   "name": "arm_head knuckle skin: curvature step at every join",
+   "name": "arm_head surface: curvature step at every join",
    "ok": true,
-   "measured": "1.041e-11 /mm (max 0.002)"
+   "measured": "5.313e-05 /mm (max 0.002)"
   },
   {
    "section": "arm_head",
-   "name": "arm_head tulip skin: normal step at every join (8 edges)",
+   "name": "arm_head side outline curvature jump (G2)",
    "ok": true,
-   "measured": "4.339e-11 deg (max 0.5)"
+   "measured": "3.22e-14 /mm"
   },
   {
    "section": "arm_head",
-   "name": "arm_head tulip skin: curvature step at every join",
+   "name": "arm_head J3 face flat half-width (ring needs 13)",
    "ok": true,
-   "measured": "5.326e-13 /mm (max 0.002)"
+   "measured": "13.500 mm (min 13)"
   },
   {
    "section": "arm_head",
-   "name": "J3 knob washer on arm_head bearing at 400 N on 217.9 mm2",
+   "name": "arm_head friction face flat above J3 (ring needs 13)",
    "ok": true,
-   "measured": "1.836 MPa (max 3.85)"
+   "measured": "17.500 mm (min 13)"
   },
   {
    "section": "arm_head",
-   "name": "head MF 1/4\" nut nut travel",
+   "name": "arm_head friction face flat below J3 (ring needs 13 + blend)",
    "ok": true,
-   "measured": "0.00e+00 mm3 of PETG in the max nut's path"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF 1/4\" nut channel width",
-   "ok": true,
-   "measured": "11.450 mm (min 11.28)"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF 1/4\" nut resting nut play toward the mouth",
-   "ok": true,
-   "measured": "0.1855 mm (max 0.5)"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF 1/4\" nut side wall >= 1.5",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF 1/4\" nut roof >= 1.5",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 (-10,-10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 (-10,-10) insert hole depth",
-   "ok": true,
-   "measured": "6.400 mm (min 6.2)"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 (-10,-10) insert to the 1/4\" channel",
-   "ok": true,
-   "measured": "1.985 mm (min 1.6)"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 (+10,-10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 (+10,-10) insert hole depth",
-   "ok": true,
-   "measured": "6.400 mm (min 6.2)"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 (+10,-10) insert to the 1/4\" channel",
-   "ok": true,
-   "measured": "1.985 mm (min 1.6)"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 (-10,+10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 (-10,+10) insert hole depth",
-   "ok": true,
-   "measured": "6.400 mm (min 6.2)"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 (-10,+10) insert to the 1/4\" channel",
-   "ok": true,
-   "measured": "5.647 mm (min 1.6)"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 (+10,+10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 (+10,+10) insert hole depth",
-   "ok": true,
-   "measured": "6.400 mm (min 6.2)"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 (+10,+10) insert to the 1/4\" channel",
-   "ok": true,
-   "measured": "5.647 mm (min 1.6)"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF M3 insert pull-out shear at 80 N",
-   "ok": true,
-   "measured": "0.9712 MPa (max 1.09697)"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF 1/4\" port nut bearing at 236 N on 67.9 mm2",
-   "ok": true,
-   "measured": "3.475 MPa (max 3.85)"
-  },
-  {
-   "section": "arm_head",
-   "name": "head MF 1/4\" tip floor wall",
-   "ok": true,
-   "measured": "14.200 mm (min 1.5)"
+   "measured": "13.500 mm (min 13)"
   },
   {
    "section": "knob",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 9185.7 mm3, valid=True"
+   "measured": "1 solid, 6796.0 mm3, valid=True"
   },
   {
    "section": "knob",
@@ -684,645 +456,129 @@
   },
   {
    "section": "knob",
-   "name": "knob roof over the bolt bore",
+   "name": "knob roof over the screw head pocket",
    "ok": true,
-   "measured": "2.362 mm (min 1.5)"
+   "measured": "2.000 mm (min 1.5)"
   },
   {
    "section": "knob",
-   "name": "knob wall round the nut corner, at a flute",
+   "name": "knob wall round the skirt bore, at a flute",
    "ok": true,
-   "measured": "7.361 mm (min 1.5)"
+   "measured": "4.900 mm (min 1.5)"
+  },
+  {
+   "section": "knob",
+   "name": "knob skirt over the head washer",
+   "ok": true,
+   "measured": "4.100 mm (min 1.6)"
   },
   {
    "section": "knob",
    "name": "knob crown curvature jump (G2)",
    "ok": true,
-   "measured": "1.44e-15 /mm"
+   "measured": "1.14e-15 /mm"
   },
   {
-   "section": "zve10",
+   "section": "j3_ring",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 99609.3 mm3, valid=True"
+   "measured": "1 solid, 470.1 mm3, valid=True"
   },
   {
-   "section": "zve10",
-   "name": "zve10: overhang <= 45 deg or bridge <= 10 mm",
+   "section": "j3_ring",
+   "name": "j3_ring: overhang <= 45 deg or bridge <= 10 mm",
    "ok": true,
    "measured": "none"
   },
   {
-   "section": "zve10",
-   "name": "foot (-10,-10) under the washer",
+   "section": "j3_ring",
+   "name": "j3_ring radial wall",
    "ok": true,
-   "measured": "4.200 mm (min 4.19)"
+   "measured": "8.600 mm (min 1.2)"
   },
   {
-   "section": "zve10",
-   "name": "foot (-10,-10) washer bearing at 80 N on 29.4 mm2",
+   "section": "j3_ring",
+   "name": "j3_ring outer edge inside the arm_tip knuckle face",
    "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
+   "measured": "1.300 mm (min 0.3)"
   },
   {
-   "section": "zve10",
-   "name": "foot (+10,-10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "zve10",
-   "name": "foot (+10,-10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "zve10",
-   "name": "foot (-10,+10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "zve10",
-   "name": "foot (-10,+10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "zve10",
-   "name": "foot (+10,+10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "zve10",
-   "name": "foot (+10,+10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "zve10",
-   "name": "zve10 skin: normal step at every join (128 edges)",
-   "ok": true,
-   "measured": "0.00381 deg (max 0.5)"
-  },
-  {
-   "section": "zve10",
-   "name": "zve10 skin: curvature step at every join",
-   "ok": true,
-   "measured": "2.63e-06 /mm (max 0.002)"
-  },
-  {
-   "section": "zve10",
-   "name": "camera slot open",
-   "ok": true,
-   "measured": "0.0000 mm3 of material in the void"
-  },
-  {
-   "section": "zve10",
-   "name": "camera washer at x -12 bearing at 394 N on 179.3 mm2",
-   "ok": true,
-   "measured": "2.197 MPa (max 3.85)"
-  },
-  {
-   "section": "zve10",
-   "name": "camera washer at x 0 bearing at 394 N on 138.4 mm2",
-   "ok": true,
-   "measured": "2.847 MPa (max 3.85)"
-  },
-  {
-   "section": "zve10",
-   "name": "camera washer at x 12 bearing at 394 N on 179.3 mm2",
-   "ok": true,
-   "measured": "2.197 MPa (max 3.85)"
-  },
-  {
-   "section": "cam_plate",
+   "section": "seam_cap_1",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 247651.6 mm3, valid=True"
+   "measured": "1 solid, 4760.3 mm3, valid=True"
   },
   {
-   "section": "cam_plate",
-   "name": "cam_plate: overhang <= 45 deg or bridge <= 10 mm",
+   "section": "seam_cap_1",
+   "name": "seam_cap_1: overhang <= 45 deg or bridge <= 10 mm",
    "ok": true,
    "measured": "none"
   },
   {
-   "section": "cam_plate",
-   "name": "foot (-10,-10) under the washer",
+   "section": "seam_cap_1",
+   "name": "seam_cap_1 grip length in its counterbore",
    "ok": true,
-   "measured": "4.200 mm (min 4.19)"
+   "measured": "29.377 mm (min 3)"
   },
   {
-   "section": "cam_plate",
-   "name": "foot (-10,-10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "cam_plate",
-   "name": "foot (+10,-10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "cam_plate",
-   "name": "foot (+10,-10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "cam_plate",
-   "name": "foot (-10,+10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "cam_plate",
-   "name": "foot (-10,+10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "cam_plate",
-   "name": "foot (+10,+10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "cam_plate",
-   "name": "foot (+10,+10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "cam_plate",
-   "name": "cam_plate skin: normal step at every join (64 edges)",
-   "ok": true,
-   "measured": "0.0003271 deg (max 0.5)"
-  },
-  {
-   "section": "cam_plate",
-   "name": "cam_plate skin: curvature step at every join",
-   "ok": true,
-   "measured": "1.253e-06 /mm (max 0.002)"
-  },
-  {
-   "section": "cam_plate",
-   "name": "camera station x 0..0 open",
-   "ok": true,
-   "measured": "0.0000 mm3 of material in the void"
-  },
-  {
-   "section": "cam_plate",
-   "name": "camera washer at x 0 bearing at 394 N on 220.3 mm2",
-   "ok": true,
-   "measured": "1.789 MPa (max 3.85)"
-  },
-  {
-   "section": "cam_plate",
-   "name": "camera station x -110..-70 open",
-   "ok": true,
-   "measured": "0.0000 mm3 of material in the void"
-  },
-  {
-   "section": "cam_plate",
-   "name": "camera washer at x -110 bearing at 394 N on 179.3 mm2",
-   "ok": true,
-   "measured": "2.197 MPa (max 3.85)"
-  },
-  {
-   "section": "cam_plate",
-   "name": "camera station x 70..110 open",
-   "ok": true,
-   "measured": "0.0000 mm3 of material in the void"
-  },
-  {
-   "section": "cam_plate",
-   "name": "camera washer at x 70 bearing at 394 N on 179.3 mm2",
-   "ok": true,
-   "measured": "2.197 MPa (max 3.85)"
-  },
-  {
-   "section": "phone",
+   "section": "seam_cap_2",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 12249.5 mm3, valid=True"
+   "measured": "1 solid, 4760.3 mm3, valid=True"
   },
   {
-   "section": "phone",
-   "name": "phone: overhang <= 45 deg or bridge <= 10 mm",
+   "section": "seam_cap_2",
+   "name": "seam_cap_2: overhang <= 45 deg or bridge <= 10 mm",
    "ok": true,
    "measured": "none"
   },
   {
-   "section": "phone",
-   "name": "foot (-10,-10) under the washer",
+   "section": "seam_cap_2",
+   "name": "seam_cap_2 grip length in its counterbore",
    "ok": true,
-   "measured": "4.200 mm (min 4.19)"
+   "measured": "29.377 mm (min 3)"
   },
   {
-   "section": "phone",
-   "name": "foot (-10,-10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "phone",
-   "name": "foot (+10,-10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "phone",
-   "name": "foot (+10,-10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "phone",
-   "name": "foot (-10,+10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "phone",
-   "name": "foot (-10,+10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "phone",
-   "name": "foot (+10,+10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "phone",
-   "name": "foot (+10,+10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "phone",
-   "name": "phone foot skin: normal step at every join (64 edges)",
-   "ok": true,
-   "measured": "9.378e-12 deg (max 0.5)"
-  },
-  {
-   "section": "phone",
-   "name": "phone foot skin: curvature step at every join",
-   "ok": true,
-   "measured": "6.611e-13 /mm (max 0.002)"
-  },
-  {
-   "section": "phone",
-   "name": "phone wall skin: normal step at every join (56 edges)",
-   "ok": true,
-   "measured": "3.925e-11 deg (max 0.5)"
-  },
-  {
-   "section": "phone",
-   "name": "phone wall skin: curvature step at every join",
-   "ok": true,
-   "measured": "7.355e-12 /mm (max 0.002)"
-  },
-  {
-   "section": "phone",
-   "name": "phone ear insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "phone",
-   "name": "phone ear insert hole depth",
-   "ok": true,
-   "measured": "inf mm (min 6.2)"
-  },
-  {
-   "section": "phone",
-   "name": "phone ear insert pull-out shear at 80 N",
-   "ok": true,
-   "measured": "0.9712 MPa (max 1.09697)"
-  },
-  {
-   "section": "phone",
-   "name": "ear slot open",
-   "ok": true,
-   "measured": "0.0000 mm3 of material in the void"
-  },
-  {
-   "section": "gopro",
+   "section": "seam_cap_3",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 12884.1 mm3, valid=True"
+   "measured": "1 solid, 4983.1 mm3, valid=True"
   },
   {
-   "section": "gopro",
-   "name": "gopro: overhang <= 45 deg or bridge <= 10 mm",
+   "section": "seam_cap_3",
+   "name": "seam_cap_3: overhang <= 45 deg or bridge <= 10 mm",
    "ok": true,
    "measured": "none"
   },
   {
-   "section": "gopro",
-   "name": "foot (-10,-10) under the washer",
+   "section": "seam_cap_3",
+   "name": "seam_cap_3 grip length in its counterbore",
    "ok": true,
-   "measured": "4.200 mm (min 4.19)"
+   "measured": "29.954 mm (min 3)"
   },
   {
-   "section": "gopro",
-   "name": "foot (-10,-10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "gopro",
-   "name": "foot (+10,-10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "gopro",
-   "name": "foot (+10,-10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "gopro",
-   "name": "foot (-10,+10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "gopro",
-   "name": "foot (-10,+10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "gopro",
-   "name": "foot (+10,+10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "gopro",
-   "name": "foot (+10,+10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "gopro",
-   "name": "gopro foot skin: normal step at every join (64 edges)",
-   "ok": true,
-   "measured": "9.378e-12 deg (max 0.5)"
-  },
-  {
-   "section": "gopro",
-   "name": "gopro foot skin: curvature step at every join",
-   "ok": true,
-   "measured": "6.611e-13 /mm (max 0.002)"
-  },
-  {
-   "section": "gopro",
-   "name": "stud bore open",
-   "ok": true,
-   "measured": "0.0000 mm3 of material in the void"
-  },
-  {
-   "section": "post",
+   "section": "seam_cap_4",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 80676.0 mm3, valid=True"
+   "measured": "1 solid, 4983.1 mm3, valid=True"
   },
   {
-   "section": "post",
-   "name": "post: overhang <= 45 deg or bridge <= 10 mm",
+   "section": "seam_cap_4",
+   "name": "seam_cap_4: overhang <= 45 deg or bridge <= 10 mm",
    "ok": true,
    "measured": "none"
   },
   {
-   "section": "post",
-   "name": "foot (-10,-10) under the washer",
+   "section": "seam_cap_4",
+   "name": "seam_cap_4 grip length in its counterbore",
    "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "post",
-   "name": "foot (-10,-10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "post",
-   "name": "foot (+10,-10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "post",
-   "name": "foot (+10,-10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "post",
-   "name": "foot (-10,+10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "post",
-   "name": "foot (-10,+10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "post",
-   "name": "foot (+10,+10) under the washer",
-   "ok": true,
-   "measured": "4.200 mm (min 4.19)"
-  },
-  {
-   "section": "post",
-   "name": "foot (+10,+10) washer bearing at 80 N on 29.4 mm2",
-   "ok": true,
-   "measured": "2.721 MPa (max 3.85)"
-  },
-  {
-   "section": "post",
-   "name": "post foot skin: normal step at every join (64 edges)",
-   "ok": true,
-   "measured": "9.378e-12 deg (max 0.5)"
-  },
-  {
-   "section": "post",
-   "name": "post foot skin: curvature step at every join",
-   "ok": true,
-   "measured": "6.611e-13 /mm (max 0.002)"
-  },
-  {
-   "section": "post",
-   "name": "post column skin: normal step at every join (8 edges)",
-   "ok": true,
-   "measured": "1.374e-13 deg (max 0.5)"
-  },
-  {
-   "section": "post",
-   "name": "post column skin: curvature step at every join",
-   "ok": true,
-   "measured": "1.116e-14 /mm (max 0.002)"
-  },
-  {
-   "section": "post",
-   "name": "post MF 1/4\" nut nut travel",
-   "ok": true,
-   "measured": "0.00e+00 mm3 of PETG in the max nut's path"
-  },
-  {
-   "section": "post",
-   "name": "post MF 1/4\" nut channel width",
-   "ok": true,
-   "measured": "11.450 mm (min 11.28)"
-  },
-  {
-   "section": "post",
-   "name": "post MF 1/4\" nut resting nut play toward the mouth",
-   "ok": true,
-   "measured": "0.1855 mm (max 0.5)"
-  },
-  {
-   "section": "post",
-   "name": "post MF 1/4\" nut side wall >= 1.5",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "post",
-   "name": "post MF 1/4\" nut roof >= 1.5",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 (-10,-10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 (-10,-10) insert hole depth",
-   "ok": true,
-   "measured": "inf mm (min 6.2)"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 (-10,-10) insert to the 1/4\" channel",
-   "ok": true,
-   "measured": "1.975 mm (min 1.6)"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 (+10,-10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 (+10,-10) insert hole depth",
-   "ok": true,
-   "measured": "inf mm (min 6.2)"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 (+10,-10) insert to the 1/4\" channel",
-   "ok": true,
-   "measured": "1.985 mm (min 1.6)"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 (-10,+10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 (-10,+10) insert hole depth",
-   "ok": true,
-   "measured": "inf mm (min 6.2)"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 (-10,+10) insert to the 1/4\" channel",
-   "ok": true,
-   "measured": "5.643 mm (min 1.6)"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 (+10,+10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 (+10,+10) insert hole depth",
-   "ok": true,
-   "measured": "inf mm (min 6.2)"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 (+10,+10) insert to the 1/4\" channel",
-   "ok": true,
-   "measured": "1.975 mm (min 1.6)"
-  },
-  {
-   "section": "post",
-   "name": "post MF M3 insert pull-out shear at 80 N",
-   "ok": true,
-   "measured": "0.9712 MPa (max 1.09697)"
-  },
-  {
-   "section": "post",
-   "name": "post MF 1/4\" port nut bearing at 236 N on 64.6 mm2",
-   "ok": true,
-   "measured": "3.656 MPa (max 3.85)"
-  },
-  {
-   "section": "post",
-   "name": "post MF 1/4\" tip floor wall",
-   "ok": true,
-   "measured": "65.500 mm (min 1.5)"
-  },
-  {
-   "section": "post",
-   "name": "post key path (-10,-10) up the flute",
-   "ok": true,
-   "measured": "0.0000 mm3 of material in the void"
-  },
-  {
-   "section": "post",
-   "name": "post key path (+10,-10) up the flute",
-   "ok": true,
-   "measured": "0.0000 mm3 of material in the void"
-  },
-  {
-   "section": "post",
-   "name": "post key path (-10,+10) up the flute",
-   "ok": true,
-   "measured": "0.0000 mm3 of material in the void"
-  },
-  {
-   "section": "post",
-   "name": "post key path (+10,+10) up the flute",
-   "ok": true,
-   "measured": "0.0000 mm3 of material in the void"
+   "measured": "29.954 mm (min 3)"
   },
   {
    "section": "coupon_collar_front",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 9701.6 mm3, valid=True"
+   "measured": "1 solid, 23096.8 mm3, valid=True"
   },
   {
    "section": "coupon_collar_front",
@@ -1340,7 +596,7 @@
    "section": "coupon_collar_back",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 11007.8 mm3, valid=True"
+   "measured": "1 solid, 25242.3 mm3, valid=True"
   },
   {
    "section": "coupon_collar_back",
@@ -1358,7 +614,7 @@
    "section": "coupon_liner_front",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 2062.7 mm3, valid=True"
+   "measured": "1 solid, 2881.8 mm3, valid=True"
   },
   {
    "section": "coupon_liner_front",
@@ -1376,7 +632,7 @@
    "section": "coupon_liner_back",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 2062.7 mm3, valid=True"
+   "measured": "1 solid, 2881.8 mm3, valid=True"
   },
   {
    "section": "coupon_liner_back",
@@ -1391,64 +647,10 @@
    "measured": "0.250 mm (fit 0.25 +- 0.02)"
   },
   {
-   "section": "coupon_mf",
-   "name": "one solid",
-   "ok": true,
-   "measured": "1 solid, 22200.9 mm3, valid=True"
-  },
-  {
-   "section": "coupon_mf",
-   "name": "coupon_mf: overhang <= 45 deg or bridge <= 10 mm",
-   "ok": true,
-   "measured": "none"
-  },
-  {
-   "section": "coupon_mf",
-   "name": "collar MF 1/4\" nut nut travel",
-   "ok": true,
-   "measured": "0.00e+00 mm3 of PETG in the max nut's path"
-  },
-  {
-   "section": "coupon_mf",
-   "name": "collar MF 1/4\" nut channel width",
-   "ok": true,
-   "measured": "11.450 mm (min 11.28)"
-  },
-  {
-   "section": "coupon_mf",
-   "name": "collar MF 1/4\" nut resting nut play toward the mouth",
-   "ok": true,
-   "measured": "0.1855 mm (max 0.5)"
-  },
-  {
-   "section": "coupon_mf",
-   "name": "collar MF M3 (+10,-10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "coupon_mf",
-   "name": "collar MF M3 (+10,-10) insert hole depth",
-   "ok": true,
-   "measured": "6.400 mm (min 6.2)"
-  },
-  {
-   "section": "coupon_mf",
-   "name": "collar MF M3 (+10,+10) insert wall >= 1.6",
-   "ok": true,
-   "measured": "0.0000 mm3 of the wall probe is missing"
-  },
-  {
-   "section": "coupon_mf",
-   "name": "collar MF M3 (+10,+10) insert hole depth",
-   "ok": true,
-   "measured": "6.400 mm (min 6.2)"
-  },
-  {
    "section": "coupon_rosette_base",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 5636.7 mm3, valid=True"
+   "measured": "1 solid, 5039.3 mm3, valid=True"
   },
   {
    "section": "coupon_rosette_base",
@@ -1460,7 +662,7 @@
    "section": "coupon_rosette_link",
    "name": "one solid",
    "ok": true,
-   "measured": "1 solid, 6351.7 mm3, valid=True"
+   "measured": "1 solid, 10846.0 mm3, valid=True"
   },
   {
    "section": "coupon_rosette_link",
@@ -1470,759 +672,543 @@
   },
   {
    "section": "assembly",
-   "name": "seam 1 solid is the stack length",
+   "name": "seam 1: seat to insert top at liner contact",
    "ok": true,
-   "measured": "measured stack 30, modeled screw 30"
+   "measured": "30.625 mm (range 30.575..30.675)"
   },
   {
    "section": "assembly",
-   "name": "seam 1 screw",
+   "name": "seam: spring deflection over the tolerance band, share of h0",
    "ok": true,
-   "measured": "ISO 4762 x30"
+   "measured": "0.269  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "seam 1 engagement, short screw, open",
+   "name": "seam: spring deflection, other end of the band",
    "ok": true,
-   "measured": "6.020 mm (min 4.7)"
+   "measured": "0.917  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "seam 1 tip, long screw, open",
+   "name": "seam: stop force over the band (DIN 2093 table)",
    "ok": true,
-   "measured": "6.62 mm (max 9.5)"
+   "measured": "71 .. 128 N"
   },
   {
    "section": "assembly",
-   "name": "seam 1 engagement, short screw, closed",
+   "name": "seam: least stop force covers the 2x tilting couple on four screws",
    "ok": true,
-   "measured": "8.020 mm (min 4.7)"
+   "measured": "70.815 N (min 32.5496)"
   },
   {
    "section": "assembly",
-   "name": "seam 1 tip, long screw, closed",
+   "name": "seam at the most stop force insert pull-out shear at 128.333 N",
    "ok": true,
-   "measured": "8.62 mm (max 9.5)"
+   "measured": "0.6056 MPa (max 1.09697)"
   },
   {
    "section": "assembly",
-   "name": "seam 1 head below the surface",
+   "name": "seam seat washer at the most stop force bearing at 128.333 N on 145.2 mm2",
    "ok": true,
-   "measured": "7.246 mm (min 0.3)"
+   "measured": "0.8841 MPa (max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "seam 2 solid is the stack length",
+   "name": "seam: thread in the insert at the stop",
    "ok": true,
-   "measured": "measured stack 30, modeled screw 30"
+   "measured": "9.500 mm (min 7.5)"
   },
   {
    "section": "assembly",
-   "name": "seam 2 screw",
+   "name": "seam: hole past the thread tip (measured)",
    "ok": true,
-   "measured": "ISO 4762 x30"
+   "measured": "0.550 mm (min 0.3)"
   },
   {
    "section": "assembly",
-   "name": "seam 2 engagement, short screw, open",
+   "name": "seam: shoulder stops on the insert, not PETG",
    "ok": true,
-   "measured": "5.982 mm (min 4.7)"
+   "measured": "0.0000 mm3 of material in the void"
   },
   {
    "section": "assembly",
-   "name": "seam 2 tip, long screw, open",
+   "name": "seam 2: seat to insert top at liner contact",
    "ok": true,
-   "measured": "6.582 mm (max 9.46187)"
+   "measured": "30.625 mm (range 30.575..30.675)"
   },
   {
    "section": "assembly",
-   "name": "seam 2 engagement, short screw, closed",
+   "name": "seam: spring deflection over the tolerance band, share of h0",
    "ok": true,
-   "measured": "7.982 mm (min 4.7)"
+   "measured": "0.269  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "seam 2 tip, long screw, closed",
+   "name": "seam: spring deflection, other end of the band",
    "ok": true,
-   "measured": "8.582 mm (max 9.46187)"
+   "measured": "0.917  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "seam 2 head below the surface",
+   "name": "seam: stop force over the band (DIN 2093 table)",
    "ok": true,
-   "measured": "7.246 mm (min 0.3)"
+   "measured": "71 .. 128 N"
   },
   {
    "section": "assembly",
-   "name": "seam 3 solid is the stack length",
+   "name": "seam: least stop force covers the 2x tilting couple on four screws",
    "ok": true,
-   "measured": "measured stack 30, modeled screw 30"
+   "measured": "70.815 N (min 32.5496)"
   },
   {
    "section": "assembly",
-   "name": "seam 3 screw",
+   "name": "seam at the most stop force insert pull-out shear at 128.333 N",
    "ok": true,
-   "measured": "ISO 4762 x30"
+   "measured": "0.6056 MPa (max 1.09697)"
   },
   {
    "section": "assembly",
-   "name": "seam 3 engagement, short screw, open",
+   "name": "seam seat washer at the most stop force bearing at 128.333 N on 145.2 mm2",
    "ok": true,
-   "measured": "6.020 mm (min 4.7)"
+   "measured": "0.8841 MPa (max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "seam 3 tip, long screw, open",
+   "name": "seam: thread in the insert at the stop",
    "ok": true,
-   "measured": "6.62 mm (max 9.5)"
+   "measured": "9.500 mm (min 7.5)"
   },
   {
    "section": "assembly",
-   "name": "seam 3 engagement, short screw, closed",
+   "name": "seam: hole past the thread tip (measured)",
    "ok": true,
-   "measured": "8.020 mm (min 4.7)"
+   "measured": "0.550 mm (min 0.3)"
   },
   {
    "section": "assembly",
-   "name": "seam 3 tip, long screw, closed",
+   "name": "seam: shoulder stops on the insert, not PETG",
    "ok": true,
-   "measured": "8.62 mm (max 9.5)"
+   "measured": "0.0000 mm3 of material in the void"
   },
   {
    "section": "assembly",
-   "name": "seam 3 head below the surface",
+   "name": "seam 3: seat to insert top at liner contact",
    "ok": true,
-   "measured": "8.427 mm (min 0.3)"
+   "measured": "30.625 mm (range 30.575..30.675)"
   },
   {
    "section": "assembly",
-   "name": "seam 4 solid is the stack length",
+   "name": "seam: spring deflection over the tolerance band, share of h0",
    "ok": true,
-   "measured": "measured stack 30, modeled screw 30"
+   "measured": "0.269  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "seam 4 screw",
+   "name": "seam: spring deflection, other end of the band",
    "ok": true,
-   "measured": "ISO 4762 x30"
+   "measured": "0.917  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "seam 4 engagement, short screw, open",
+   "name": "seam: stop force over the band (DIN 2093 table)",
    "ok": true,
-   "measured": "5.970 mm (min 4.7)"
+   "measured": "71 .. 128 N"
   },
   {
    "section": "assembly",
-   "name": "seam 4 tip, long screw, open",
+   "name": "seam: least stop force covers the 2x tilting couple on four screws",
    "ok": true,
-   "measured": "6.57 mm (max 9.44931)"
+   "measured": "70.815 N (min 32.5496)"
   },
   {
    "section": "assembly",
-   "name": "seam 4 engagement, short screw, closed",
+   "name": "seam at the most stop force insert pull-out shear at 128.333 N",
    "ok": true,
-   "measured": "7.970 mm (min 4.7)"
+   "measured": "0.6056 MPa (max 1.09697)"
   },
   {
    "section": "assembly",
-   "name": "seam 4 tip, long screw, closed",
+   "name": "seam seat washer at the most stop force bearing at 128.333 N on 145.2 mm2",
    "ok": true,
-   "measured": "8.57 mm (max 9.44931)"
+   "measured": "0.8841 MPa (max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "seam 4 head below the surface",
+   "name": "seam: thread in the insert at the stop",
    "ok": true,
-   "measured": "8.427 mm (min 0.3)"
+   "measured": "9.500 mm (min 7.5)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,-10) solid is the stack length",
+   "name": "seam: hole past the thread tip (measured)",
    "ok": true,
-   "measured": "measured stack 10, modeled screw 10"
+   "measured": "0.550 mm (min 0.3)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,-10) screw",
+   "name": "seam: shoulder stops on the insert, not PETG",
    "ok": true,
-   "measured": "ISO 4762 x10"
+   "measured": "0.0000 mm3 of material in the void"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,-10) engagement, short screw, open",
+   "name": "seam 4: seat to insert top at liner contact",
    "ok": true,
-   "measured": "5.000 mm (min 4.7)"
+   "measured": "30.625 mm (range 30.575..30.675)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,-10) tip, long screw, open",
+   "name": "seam: spring deflection over the tolerance band, share of h0",
    "ok": true,
-   "measured": "5.6 mm (max 5.9)"
+   "measured": "0.269  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,-10) engagement, short screw, closed",
+   "name": "seam: spring deflection, other end of the band",
    "ok": true,
-   "measured": "5.000 mm (min 4.7)"
+   "measured": "0.917  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,-10) tip, long screw, closed",
+   "name": "seam: stop force over the band (DIN 2093 table)",
    "ok": true,
-   "measured": "5.6 mm (max 5.9)"
+   "measured": "71 .. 128 N"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,-10) head below the surface",
+   "name": "seam: least stop force covers the 2x tilting couple on four screws",
    "ok": true,
-   "measured": "0.300 mm (min 0.3)"
+   "measured": "70.815 N (min 32.5496)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,-10) rim ray is on the foot top",
+   "name": "seam at the most stop force insert pull-out shear at 128.333 N",
    "ok": true,
-   "measured": "8.000 mm (range 7.95..8.05)"
+   "measured": "0.6056 MPa (max 1.09697)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,-10) grip is the foot grip",
+   "name": "seam seat washer at the most stop force bearing at 128.333 N on 145.2 mm2",
    "ok": true,
-   "measured": "4.700 mm (range 4.65..4.75)"
+   "measured": "0.8841 MPa (max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,-10) solid is the stack length",
+   "name": "seam: thread in the insert at the stop",
    "ok": true,
-   "measured": "measured stack 10, modeled screw 10"
+   "measured": "9.500 mm (min 7.5)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,-10) screw",
+   "name": "seam: hole past the thread tip (measured)",
    "ok": true,
-   "measured": "ISO 4762 x10"
+   "measured": "0.550 mm (min 0.3)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,-10) engagement, short screw, open",
+   "name": "seam: shoulder stops on the insert, not PETG",
    "ok": true,
-   "measured": "5.000 mm (min 4.7)"
+   "measured": "0.0000 mm3 of material in the void"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,-10) tip, long screw, open",
+   "name": "pan pivot: seat to insert top is the design length",
    "ok": true,
-   "measured": "5.6 mm (max 5.9)"
+   "measured": "32.890 mm (range 32.85..32.95)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,-10) engagement, short screw, closed",
+   "name": "pan pivot: spring deflection over the tolerance band, share of h0",
    "ok": true,
-   "measured": "5.000 mm (min 4.7)"
+   "measured": "0.418  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,-10) tip, long screw, closed",
+   "name": "pan pivot: spring deflection, other end of the band",
    "ok": true,
-   "measured": "5.6 mm (max 5.9)"
+   "measured": "0.662  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,-10) head below the surface",
+   "name": "pan pivot: stop force over the band (DIN 2093 table)",
    "ok": true,
-   "measured": "0.300 mm (min 0.3)"
+   "measured": "261 .. 373 N"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,-10) rim ray is on the foot top",
+   "name": "pan pivot: least stop force covers no lift-off at the 2x tipping moment",
    "ok": true,
-   "measured": "8.000 mm (range 7.95..8.05)"
+   "measured": "260.587 N (min 187.74)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,-10) grip is the foot grip",
+   "name": "pan pivot at the most stop force insert pull-out shear at 372.782 N",
    "ok": true,
-   "measured": "4.700 mm (range 4.65..4.75)"
+   "measured": "1.074 MPa (max 1.09697)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,+10) solid is the stack length",
+   "name": "pan pivot seat washer at the most stop force bearing at 372.782 N on 116.5 mm2",
    "ok": true,
-   "measured": "measured stack 10, modeled screw 10"
+   "measured": "3.199 MPa (max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,+10) screw",
+   "name": "pan pivot: thread in the insert at the stop",
    "ok": true,
-   "measured": "ISO 4762 x10"
+   "measured": "11.250 mm (min 9)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,+10) engagement, short screw, open",
+   "name": "pan pivot: hole past the thread tip (measured)",
    "ok": true,
-   "measured": "5.000 mm (min 4.7)"
+   "measured": "1.950 mm (min 0.3)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,+10) tip, long screw, open",
+   "name": "pan pivot: shoulder stops on the insert, not PETG",
    "ok": true,
-   "measured": "5.6 mm (max 5.9)"
+   "measured": "0.0000 mm3 of material in the void"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,+10) engagement, short screw, closed",
+   "name": "pan pivot: thread left in the insert, backed out 1 mm past the springs",
    "ok": true,
-   "measured": "5.000 mm (min 4.7)"
+   "measured": "8.400 mm (min 4.8)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,+10) tip, long screw, closed",
+   "name": "J1: seat to insert top is the design length",
    "ok": true,
-   "measured": "5.6 mm (max 5.9)"
+   "measured": "12.900 mm (range 12.85..12.95)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,+10) head below the surface",
+   "name": "J1: spring deflection over the tolerance band, share of h0",
    "ok": true,
-   "measured": "0.300 mm (min 0.3)"
+   "measured": "0.422  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,+10) rim ray is on the foot top",
+   "name": "J1: spring deflection, other end of the band",
    "ok": true,
-   "measured": "8.000 mm (range 7.95..8.05)"
+   "measured": "0.667  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (-10,+10) grip is the foot grip",
+   "name": "J1: stop force over the band (DIN 2093 table)",
    "ok": true,
-   "measured": "4.700 mm (range 4.65..4.75)"
+   "measured": "263 .. 375 N"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,+10) solid is the stack length",
+   "name": "J1: least stop force covers the rosette at the 2x moment",
    "ok": true,
-   "measured": "measured stack 10, modeled screw 10"
+   "measured": "262.933 N (min 192.093)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,+10) screw",
+   "name": "J1 at the most stop force insert pull-out shear at 374.667 N",
    "ok": true,
-   "measured": "ISO 4762 x10"
+   "measured": "1.079 MPa (max 1.09697)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,+10) engagement, short screw, open",
+   "name": "J1 seat washer at the most stop force bearing at 374.667 N on 141.9 mm2",
    "ok": true,
-   "measured": "5.000 mm (min 4.7)"
+   "measured": "2.641 MPa (max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,+10) tip, long screw, open",
+   "name": "J1: thread in the insert at the stop",
    "ok": true,
-   "measured": "5.6 mm (max 5.9)"
+   "measured": "11.250 mm (min 9)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,+10) engagement, short screw, closed",
+   "name": "J1: hole past the thread tip (measured)",
    "ok": true,
-   "measured": "5.000 mm (min 4.7)"
+   "measured": "1.950 mm (min 0.3)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,+10) tip, long screw, closed",
+   "name": "J1: shoulder stops on the insert, not PETG",
    "ok": true,
-   "measured": "5.6 mm (max 5.9)"
+   "measured": "0.0000 mm3 of material in the void"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,+10) head below the surface",
+   "name": "J1: thread left in the insert, backed out 2.2 mm past the springs",
    "ok": true,
-   "measured": "0.300 mm (min 0.3)"
+   "measured": "7.200 mm (min 4.8)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,+10) rim ray is on the foot top",
+   "name": "J2: seat to insert top is the design length",
    "ok": true,
-   "measured": "8.000 mm (range 7.95..8.05)"
+   "measured": "12.900 mm (range 12.85..12.95)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot (+10,+10) grip is the foot grip",
+   "name": "J2: spring deflection over the tolerance band, share of h0",
    "ok": true,
-   "measured": "4.700 mm (range 4.65..4.75)"
+   "measured": "0.422  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (-10,-10) solid is the stack length",
+   "name": "J2: spring deflection, other end of the band",
    "ok": true,
-   "measured": "measured stack 10, modeled screw 10"
+   "measured": "0.667  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (-10,-10) screw",
+   "name": "J2: stop force over the band (DIN 2093 table)",
    "ok": true,
-   "measured": "ISO 4762 x10"
+   "measured": "263 .. 375 N"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (-10,-10) engagement, short screw, open",
+   "name": "J2: least stop force covers the rosette at the 2x moment",
    "ok": true,
-   "measured": "5.000 mm (min 4.7)"
+   "measured": "262.933 N (min 103.629)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (-10,-10) tip, long screw, open",
+   "name": "J2 at the most stop force insert pull-out shear at 374.667 N",
    "ok": true,
-   "measured": "5.6 mm (max 5.9)"
+   "measured": "1.079 MPa (max 1.09697)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (-10,-10) engagement, short screw, closed",
+   "name": "J2 seat washer at the most stop force bearing at 374.667 N on 145.6 mm2",
    "ok": true,
-   "measured": "5.000 mm (min 4.7)"
+   "measured": "2.572 MPa (max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (-10,-10) tip, long screw, closed",
+   "name": "J2: thread in the insert at the stop",
    "ok": true,
-   "measured": "5.6 mm (max 5.9)"
+   "measured": "11.250 mm (min 9)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (-10,-10) head below the surface",
+   "name": "J2: hole past the thread tip (measured)",
    "ok": true,
-   "measured": "6.600 mm (min 0.3)"
+   "measured": "1.950 mm (min 0.3)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (-10,-10) rim ray is on the foot top",
+   "name": "J2: shoulder stops on the insert, not PETG",
    "ok": true,
-   "measured": "14.300 mm (range 14.25..14.35)"
+   "measured": "0.0000 mm3 of material in the void"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (-10,-10) grip is the foot grip",
+   "name": "J2: thread left in the insert, backed out 2.2 mm past the springs",
    "ok": true,
-   "measured": "4.700 mm (range 4.65..4.75)"
+   "measured": "7.200 mm (min 4.8)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (+10,-10) solid is the stack length",
+   "name": "J3: seat to insert top is the design length",
    "ok": true,
-   "measured": "measured stack 10, modeled screw 10"
+   "measured": "12.675 mm (range 12.625..12.725)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (+10,-10) screw",
+   "name": "J3: spring deflection over the tolerance band, share of h0",
    "ok": true,
-   "measured": "ISO 4762 x10"
+   "measured": "0.278  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (+10,-10) engagement, short screw, open",
+   "name": "J3: spring deflection, other end of the band",
    "ok": true,
-   "measured": "5.000 mm (min 4.7)"
+   "measured": "0.611  (range 0.15..0.95)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (+10,-10) tip, long screw, open",
+   "name": "J3: stop force over the band (DIN 2093 table)",
    "ok": true,
-   "measured": "5.6 mm (max 5.9)"
+   "measured": "187 .. 351 N"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (+10,-10) engagement, short screw, closed",
+   "name": "J3: least stop force covers ring friction at 2x, tilted 15",
    "ok": true,
-   "measured": "5.000 mm (min 4.7)"
+   "measured": "186.667 N (min 145.937)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (+10,-10) tip, long screw, closed",
+   "name": "J3 at the most stop force insert pull-out shear at 351.111 N",
    "ok": true,
-   "measured": "5.6 mm (max 5.9)"
+   "measured": "1.012 MPa (max 1.09697)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (+10,-10) head below the surface",
+   "name": "J3 seat washer at the most stop force bearing at 351.111 N on 141.9 mm2",
    "ok": true,
-   "measured": "6.600 mm (min 0.3)"
+   "measured": "2.475 MPa (max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (+10,-10) rim ray is on the foot top",
+   "name": "J3: thread in the insert at the stop",
    "ok": true,
-   "measured": "14.300 mm (range 14.25..14.35)"
+   "measured": "11.250 mm (min 9)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (+10,-10) grip is the foot grip",
+   "name": "J3: hole past the thread tip (measured)",
    "ok": true,
-   "measured": "4.700 mm (range 4.65..4.75)"
+   "measured": "1.950 mm (min 0.3)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (-10,+10) solid is the stack length",
+   "name": "J3: shoulder stops on the insert, not PETG",
    "ok": true,
-   "measured": "measured stack 10, modeled screw 10"
+   "measured": "0.0000 mm3 of material in the void"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (-10,+10) screw",
+   "name": "J3: thread left in the insert, backed out 1 mm past the springs",
    "ok": true,
-   "measured": "ISO 4762 x10"
+   "measured": "8.625 mm (min 4.8)"
   },
   {
    "section": "assembly",
-   "name": "zve10 foot (-10,+10) engagement, short screw, open",
-   "ok": true,
-   "measured": "5.000 mm (min 4.7)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (-10,+10) tip, long screw, open",
-   "ok": true,
-   "measured": "5.6 mm (max 5.9)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (-10,+10) engagement, short screw, closed",
-   "ok": true,
-   "measured": "5.000 mm (min 4.7)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (-10,+10) tip, long screw, closed",
-   "ok": true,
-   "measured": "5.6 mm (max 5.9)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (-10,+10) head below the surface",
-   "ok": true,
-   "measured": "6.600 mm (min 0.3)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (-10,+10) rim ray is on the foot top",
-   "ok": true,
-   "measured": "14.300 mm (range 14.25..14.35)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (-10,+10) grip is the foot grip",
-   "ok": true,
-   "measured": "4.700 mm (range 4.65..4.75)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (+10,+10) solid is the stack length",
-   "ok": true,
-   "measured": "measured stack 10, modeled screw 10"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (+10,+10) screw",
-   "ok": true,
-   "measured": "ISO 4762 x10"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (+10,+10) engagement, short screw, open",
-   "ok": true,
-   "measured": "5.000 mm (min 4.7)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (+10,+10) tip, long screw, open",
-   "ok": true,
-   "measured": "5.6 mm (max 5.9)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (+10,+10) engagement, short screw, closed",
-   "ok": true,
-   "measured": "5.000 mm (min 4.7)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (+10,+10) tip, long screw, closed",
-   "ok": true,
-   "measured": "5.6 mm (max 5.9)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (+10,+10) head below the surface",
-   "ok": true,
-   "measured": "6.600 mm (min 0.3)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (+10,+10) rim ray is on the foot top",
-   "ok": true,
-   "measured": "14.300 mm (range 14.25..14.35)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 foot (+10,+10) grip is the foot grip",
-   "ok": true,
-   "measured": "4.700 mm (range 4.65..4.75)"
-  },
-  {
-   "section": "assembly",
-   "name": "J1 arm joint solid is the stack length",
-   "ok": true,
-   "measured": "measured stack 35, modeled screw 35"
-  },
-  {
-   "section": "assembly",
-   "name": "J1 arm joint screw",
-   "ok": true,
-   "measured": "DIN 603 x35"
-  },
-  {
-   "section": "assembly",
-   "name": "J1 arm joint engagement, short screw, open",
-   "ok": true,
-   "measured": "10.619 mm (min 7.2)"
-  },
-  {
-   "section": "assembly",
-   "name": "J1 arm joint tip, long screw, open",
-   "ok": true,
-   "measured": "11.46 mm (max 15.52)"
-  },
-  {
-   "section": "assembly",
-   "name": "J1 arm joint engagement, short screw, closed",
-   "ok": true,
-   "measured": "12.819 mm (min 7.2)"
-  },
-  {
-   "section": "assembly",
-   "name": "J1 arm joint tip, long screw, closed",
-   "ok": true,
-   "measured": "13.66 mm (max 15.52)"
-  },
-  {
-   "section": "assembly",
-   "name": "J2 arm joint solid is the stack length",
-   "ok": true,
-   "measured": "measured stack 35, modeled screw 35"
-  },
-  {
-   "section": "assembly",
-   "name": "J2 arm joint screw",
-   "ok": true,
-   "measured": "DIN 603 x35"
-  },
-  {
-   "section": "assembly",
-   "name": "J2 arm joint engagement, short screw, open",
-   "ok": true,
-   "measured": "10.619 mm (min 7.2)"
-  },
-  {
-   "section": "assembly",
-   "name": "J2 arm joint tip, long screw, open",
-   "ok": true,
-   "measured": "11.46 mm (max 15.52)"
-  },
-  {
-   "section": "assembly",
-   "name": "J2 arm joint engagement, short screw, closed",
-   "ok": true,
-   "measured": "12.819 mm (min 7.2)"
-  },
-  {
-   "section": "assembly",
-   "name": "J2 arm joint tip, long screw, closed",
-   "ok": true,
-   "measured": "13.66 mm (max 15.52)"
-  },
-  {
-   "section": "assembly",
-   "name": "J3 arm joint solid is the stack length",
-   "ok": true,
-   "measured": "measured stack 35, modeled screw 35"
-  },
-  {
-   "section": "assembly",
-   "name": "J3 arm joint screw",
-   "ok": true,
-   "measured": "DIN 603 x35"
-  },
-  {
-   "section": "assembly",
-   "name": "J3 arm joint engagement, short screw, open",
-   "ok": true,
-   "measured": "10.619 mm (min 7.2)"
-  },
-  {
-   "section": "assembly",
-   "name": "J3 arm joint tip, long screw, open",
-   "ok": true,
-   "measured": "11.46 mm (max 15.52)"
-  },
-  {
-   "section": "assembly",
-   "name": "J3 arm joint engagement, short screw, closed",
-   "ok": true,
-   "measured": "12.819 mm (min 7.2)"
-  },
-  {
-   "section": "assembly",
-   "name": "J3 arm joint tip, long screw, closed",
-   "ok": true,
-   "measured": "13.66 mm (max 15.52)"
-  },
-  {
-   "section": "assembly",
-   "name": "camera screw solid is the stack length",
-   "ok": true,
-   "measured": "measured stack 12.7, modeled screw 12.7"
-  },
-  {
-   "section": "assembly",
-   "name": "camera screw screw",
-   "ok": true,
-   "measured": "ASME B18.3 x12.7"
-  },
-  {
-   "section": "assembly",
-   "name": "camera screw engagement, short screw, open",
-   "ok": true,
-   "measured": "4.850 mm (min 4)"
-  },
-  {
-   "section": "assembly",
-   "name": "camera screw tip, long screw, open",
-   "ok": true,
-   "measured": "5.35 mm (max 5.5)"
-  },
-  {
-   "section": "assembly",
-   "name": "camera screw engagement, short screw, closed",
-   "ok": true,
-   "measured": "4.850 mm (min 4)"
-  },
-  {
-   "section": "assembly",
-   "name": "camera screw tip, long screw, closed",
-   "ok": true,
-   "measured": "5.35 mm (max 5.5)"
-  },
-  {
-   "section": "assembly",
-   "name": "camera grip is the design grip",
+   "name": "camera grip by rays is the design grip",
    "ok": true,
    "measured": "7.600 mm (range 7.55..7.65)"
   },
   {
    "section": "assembly",
+   "name": "camera screw engagement, short screw",
+   "ok": true,
+   "measured": "4.850 mm (min 4)"
+  },
+  {
+   "section": "assembly",
+   "name": "camera screw tip in the socket, long screw",
+   "ok": true,
+   "measured": "5.35 mm (max 5.5)"
+  },
+  {
+   "section": "assembly",
+   "name": "camera washer at 1 Nm by hand bearing at 787.402 N on 217.9 mm2",
+   "ok": true,
+   "measured": "3.613 MPa (max 3.85)"
+  },
+  {
+   "section": "assembly",
+   "name": "ZV-E10 battery door and its swing room clear of every part",
+   "ok": true,
+   "measured": "clear"
+  },
+  {
+   "section": "assembly",
    "name": "hero assembly: clash matrix",
    "ok": true,
-   "measured": "63 solids, 86 pairs checked, worst 0.00e+00 mm3"
+   "measured": "93 solids, 170 pairs checked, worst 0.00e+00 mm3"
   },
   {
    "section": "assembly",
@@ -2250,85 +1236,43 @@
   },
   {
    "section": "assembly",
-   "name": "J3 rosette engaged, no clash",
+   "name": "J3 ring to arm_tip friction face",
    "ok": true,
-   "measured": "0.00e+00 mm3"
+   "measured": "0.020 mm (range 0..0.03)"
   },
   {
    "section": "assembly",
-   "name": "J3 rosette flank gap",
+   "name": "J3 ring to arm_head friction face",
    "ok": true,
-   "measured": "0.100 mm (range 0.05..0.15)"
+   "measured": "0.020 mm (range 0..0.03)"
   },
   {
    "section": "assembly",
-   "name": "key reaches seam screw 1 at step 3",
+   "name": "every tilt axis square to the pan axis (horizon stays level)",
    "ok": true,
-   "measured": "clear"
+   "measured": "0  (max 1e-09)"
   },
   {
    "section": "assembly",
-   "name": "key reaches seam screw 2 at step 3",
-   "ok": true,
-   "measured": "clear"
-  },
-  {
-   "section": "assembly",
-   "name": "key reaches seam screw 3 at step 3",
+   "name": "key reaches seam 1 screw at step 3",
    "ok": true,
    "measured": "clear"
   },
   {
    "section": "assembly",
-   "name": "key reaches seam screw 4 at step 3",
+   "name": "key reaches seam 2 screw at step 3",
    "ok": true,
    "measured": "clear"
   },
   {
    "section": "assembly",
-   "name": "key reaches arm_base screw (-10,-10) at step 4",
+   "name": "key reaches seam 3 screw at step 3",
    "ok": true,
    "measured": "clear"
   },
   {
    "section": "assembly",
-   "name": "key reaches arm_base screw (+10,-10) at step 4",
-   "ok": true,
-   "measured": "clear"
-  },
-  {
-   "section": "assembly",
-   "name": "key reaches arm_base screw (-10,+10) at step 4",
-   "ok": true,
-   "measured": "clear"
-  },
-  {
-   "section": "assembly",
-   "name": "key reaches arm_base screw (+10,+10) at step 4",
-   "ok": true,
-   "measured": "clear"
-  },
-  {
-   "section": "assembly",
-   "name": "key reaches zve10 screw (-10,-10) at step 6",
-   "ok": true,
-   "measured": "clear"
-  },
-  {
-   "section": "assembly",
-   "name": "key reaches zve10 screw (+10,-10) at step 6",
-   "ok": true,
-   "measured": "clear"
-  },
-  {
-   "section": "assembly",
-   "name": "key reaches zve10 screw (-10,+10) at step 6",
-   "ok": true,
-   "measured": "clear"
-  },
-  {
-   "section": "assembly",
-   "name": "key reaches zve10 screw (+10,+10) at step 6",
+   "name": "key reaches seam 4 screw at step 3",
    "ok": true,
    "measured": "clear"
   },
@@ -2340,159 +1284,141 @@
   },
   {
    "section": "assembly",
-   "name": "seam gap between the shells",
+   "name": "finger room round pivot knob (10 mm)",
    "ok": true,
-   "measured": "2.000 mm (min 1.95)"
+   "measured": "clear"
   },
   {
    "section": "assembly",
-   "name": "liner_front rib tips to column",
+   "name": "finger room round J1 knob (10 mm)",
    "ok": true,
-   "measured": "0.250 mm (fit 0.25 +- 0.02)"
+   "measured": "clear"
   },
   {
    "section": "assembly",
-   "name": "liner_back rib tips to column",
+   "name": "finger room round J2 knob (10 mm)",
    "ok": true,
-   "measured": "0.250 mm (fit 0.25 +- 0.02)"
+   "measured": "clear"
   },
   {
    "section": "assembly",
-   "name": "J1 rosette: preload the 2x moment needs",
+   "name": "finger room round J3 knob (10 mm)",
    "ok": true,
-   "measured": "274 N (max 400)"
+   "measured": "clear"
   },
   {
    "section": "assembly",
-   "name": "J2 rosette: preload the 2x moment needs",
+   "name": "seam gap at liner contact",
    "ok": true,
-   "measured": "172.2 N (max 400)"
+   "measured": "1.540 mm (min 1.49)"
   },
   {
    "section": "assembly",
-   "name": "J3 rosette: preload the 2x moment needs",
+   "name": "liner_front rib tips at the column (contact)",
    "ok": true,
-   "measured": "70.49 N (max 400)"
+   "measured": "0.020 mm (0.02 +- 0.01)"
   },
   {
    "section": "assembly",
-   "name": "joint knob torque for the preload",
+   "name": "liner_back rib tips at the column (contact)",
    "ok": true,
-   "measured": "0.48 Nm (estimated K 0.2)"
+   "measured": "0.020 mm (0.02 +- 0.01)"
   },
   {
    "section": "assembly",
-   "name": "arm_base foot: 2x bolt pull stays under the M3 preload",
+   "name": "collar back, bore to pivot sustained, along layers",
    "ok": true,
-   "measured": "61.64 N (max 80)"
+   "measured": "0.104 MPa (bending 0.103, torsion 0.009; max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "collar clamp: 2x tilting couple under the seam preload",
+   "name": "collar back, bore to pivot peak (2x), along layers",
    "ok": true,
-   "measured": "138.7 N (max 320)"
+   "measured": "0.208 MPa (bending 0.206, torsion 0.018; max 9.62)"
   },
   {
    "section": "assembly",
-   "name": "M3 torque for the preload",
+   "name": "arm_base neck sustained, across layers",
    "ok": true,
-   "measured": "0.048 Nm (estimated K 0.2)"
+   "measured": "1.048 MPa (bending 1.048, torsion 0.000; max 1.9)"
   },
   {
    "section": "assembly",
-   "name": "collar spine root sustained, along layers",
+   "name": "arm_base neck peak (2x), across layers",
    "ok": true,
-   "measured": "0.158 MPa (bending 0.158, torsion 0.005; max 3.85)"
+   "measured": "2.096 MPa (bending 2.096, torsion 0.000; max 4.75)"
   },
   {
    "section": "assembly",
-   "name": "collar spine root peak (2x), along layers",
+   "name": "arm_link waist sustained, along layers",
    "ok": true,
-   "measured": "0.316 MPa (bending 0.315, torsion 0.010; max 9.62)"
+   "measured": "1.344 MPa (bending 1.151, torsion 0.400; max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "arm_base upright root sustained, across layers",
+   "name": "arm_link waist peak (2x), along layers",
    "ok": true,
-   "measured": "1.508 MPa (bending 1.508, torsion 0.000; max 1.9)"
+   "measured": "2.688 MPa (bending 2.303, torsion 0.801; max 9.62)"
   },
   {
    "section": "assembly",
-   "name": "arm_base upright root peak (2x), across layers",
+   "name": "arm_tip waist sustained, along layers",
    "ok": true,
-   "measured": "3.016 MPa (bending 3.016, torsion 0.000; max 4.75)"
+   "measured": "0.626 MPa (bending 0.463, torsion 0.244; max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "arm_link 1 waist sustained, along layers",
+   "name": "arm_tip waist peak (2x), along layers",
    "ok": true,
-   "measured": "2.283 MPa (bending 2.283, torsion 0.000; max 3.85)"
+   "measured": "1.252 MPa (bending 0.925, torsion 0.487; max 9.62)"
   },
   {
    "section": "assembly",
-   "name": "arm_link 1 waist peak (2x), along layers",
+   "name": "arm_head block over J3 sustained, along layers",
    "ok": true,
-   "measured": "4.566 MPa (bending 4.566, torsion 0.000; max 9.62)"
+   "measured": "0.433 MPa (bending 0.433, torsion 0.000; max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "arm_link 2 waist sustained, along layers",
+   "name": "arm_head block over J3 peak (2x), along layers",
    "ok": true,
-   "measured": "1.309 MPa (bending 1.242, torsion 0.239; max 3.85)"
+   "measured": "0.865 MPa (bending 0.865, torsion 0.000; max 9.62)"
   },
   {
    "section": "assembly",
-   "name": "arm_link 2 waist peak (2x), along layers",
+   "name": "arm_head platform root sustained, along layers",
    "ok": true,
-   "measured": "2.618 MPa (bending 2.484, torsion 0.478; max 9.62)"
+   "measured": "0.747 MPa (bending 0.637, torsion 0.225; max 3.85)"
   },
   {
    "section": "assembly",
-   "name": "arm_head neck sustained, across layers",
+   "name": "arm_head platform root peak (2x), along layers",
    "ok": true,
-   "measured": "0.256 MPa (bending 0.256, torsion 0.000; max 1.9)"
-  },
-  {
-   "section": "assembly",
-   "name": "arm_head neck peak (2x), across layers",
-   "ok": true,
-   "measured": "0.512 MPa (bending 0.512, torsion 0.000; max 4.75)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 shoulder sustained, along layers",
-   "ok": true,
-   "measured": "0.091 MPa (bending 0.091, torsion 0.000; max 3.85)"
-  },
-  {
-   "section": "assembly",
-   "name": "zve10 shoulder peak (2x), along layers",
-   "ok": true,
-   "measured": "0.183 MPa (bending 0.183, torsion 0.000; max 9.62)"
-  },
-  {
-   "section": "assembly",
-   "name": "post column sustained, across layers",
-   "ok": true,
-   "measured": "1.303 MPa (bending 1.303, torsion 0.000; max 1.9)"
-  },
-  {
-   "section": "assembly",
-   "name": "post column peak (2x), across layers",
-   "ok": true,
-   "measured": "2.606 MPa (bending 2.606, torsion 0.000; max 4.75)"
+   "measured": "1.494 MPa (bending 1.273, torsion 0.451; max 9.62)"
   },
   {
    "section": "assembly",
    "name": "column top limit for the hero pose (from the collar bottom)",
    "ok": true,
-   "measured": "181.748 mm (min 100)"
+   "measured": "181.542 mm (min 100)"
   },
   {
    "section": "assembly",
    "name": "column top is above the collar",
    "ok": true,
    "measured": "100.000 mm (min 40)"
+  },
+  {
+   "section": "assembly",
+   "name": "pan drag with the pivot stopped (estimated mu 0.2)",
+   "ok": true,
+   "measured": "0.62 Nm at the least stop force"
+  },
+  {
+   "section": "assembly",
+   "name": "pan sweep: hero pose clear",
+   "ok": true,
+   "measured": "clear at 0..30, 150..195, 270..270, 330..345 deg"
   },
   {
    "section": "assembly",
@@ -2522,7 +1448,7 @@
    "section": "assembly",
    "name": "J3 sweep: hero pose clear",
    "ok": true,
-   "measured": "clear at 0..75, 255..345 deg (absolute)"
+   "measured": "clear at 0..120, 255..345 deg (absolute)"
   },
   {
    "section": "assembly",
@@ -2534,25 +1460,25 @@
    "section": "export collar_front",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "1.24e-08 (max 5e-3)"
+   "measured": "5.70e-08 (max 5e-3)"
   },
   {
    "section": "export collar_front",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "2.53e-04 (max 1e-2)"
+   "measured": "3.66e-04 (max 1e-2)"
   },
   {
    "section": "export collar_back",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "6.98e-09 (max 5e-3)"
+   "measured": "2.22e-08 (max 5e-3)"
   },
   {
    "section": "export collar_back",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "1.57e-04 (max 1e-2)"
+   "measured": "1.52e-04 (max 1e-2)"
   },
   {
    "section": "export liner_front",
@@ -2582,193 +1508,193 @@
    "section": "export arm_base",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "1.39e-09 (max 5e-3)"
+   "measured": "8.23e-10 (max 5e-3)"
   },
   {
    "section": "export arm_base",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "2.83e-04 (max 1e-2)"
+   "measured": "4.70e-04 (max 1e-2)"
   },
   {
    "section": "export arm_link",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "1.02e-08 (max 5e-3)"
+   "measured": "3.41e-12 (max 5e-3)"
   },
   {
    "section": "export arm_link",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "2.29e-04 (max 1e-2)"
+   "measured": "2.20e-04 (max 1e-2)"
+  },
+  {
+   "section": "export arm_tip",
+   "name": "STEP round trip volume",
+   "ok": true,
+   "measured": "2.57e-11 (max 5e-3)"
+  },
+  {
+   "section": "export arm_tip",
+   "name": "3MF read back volume",
+   "ok": true,
+   "measured": "2.18e-04 (max 1e-2)"
   },
   {
    "section": "export arm_head",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "3.27e-08 (max 5e-3)"
+   "measured": "3.01e-08 (max 5e-3)"
   },
   {
    "section": "export arm_head",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "2.75e-04 (max 1e-2)"
+   "measured": "4.30e-05 (max 1e-2)"
   },
   {
    "section": "export knob",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "1.60e-13 (max 5e-3)"
+   "measured": "4.94e-14 (max 5e-3)"
   },
   {
    "section": "export knob",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "5.51e-04 (max 1e-2)"
+   "measured": "5.72e-04 (max 1e-2)"
   },
   {
-   "section": "export zve10",
+   "section": "export j3_ring",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "9.52e-08 (max 5e-3)"
+   "measured": "2.21e-14 (max 5e-3)"
   },
   {
-   "section": "export zve10",
+   "section": "export j3_ring",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "2.37e-04 (max 1e-2)"
+   "measured": "4.14e-04 (max 1e-2)"
   },
   {
-   "section": "export cam_plate",
+   "section": "export seam_cap_1",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "1.39e-13 (max 5e-3)"
+   "measured": "9.52e-07 (max 5e-3)"
   },
   {
-   "section": "export cam_plate",
+   "section": "export seam_cap_1",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "1.90e-04 (max 1e-2)"
+   "measured": "6.99e-04 (max 1e-2)"
   },
   {
-   "section": "export phone",
+   "section": "export seam_cap_2",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "3.66e-10 (max 5e-3)"
+   "measured": "1.12e-06 (max 5e-3)"
   },
   {
-   "section": "export phone",
+   "section": "export seam_cap_2",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "3.21e-04 (max 1e-2)"
+   "measured": "7.04e-04 (max 1e-2)"
   },
   {
-   "section": "export gopro",
+   "section": "export seam_cap_3",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "1.03e-13 (max 5e-3)"
+   "measured": "2.69e-07 (max 5e-3)"
   },
   {
-   "section": "export gopro",
+   "section": "export seam_cap_3",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "3.79e-04 (max 1e-2)"
+   "measured": "6.72e-04 (max 1e-2)"
   },
   {
-   "section": "export post",
+   "section": "export seam_cap_4",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "1.00e-05 (max 5e-3)"
+   "measured": "1.39e-06 (max 5e-3)"
   },
   {
-   "section": "export post",
+   "section": "export seam_cap_4",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "2.01e-03 (max 1e-2)"
+   "measured": "6.46e-04 (max 1e-2)"
   },
   {
    "section": "export coupon_collar_front",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "9.03e-09 (max 5e-3)"
+   "measured": "2.04e-08 (max 5e-3)"
   },
   {
    "section": "export coupon_collar_front",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "8.97e-05 (max 1e-2)"
+   "measured": "4.15e-04 (max 1e-2)"
   },
   {
    "section": "export coupon_collar_back",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "3.40e-12 (max 5e-3)"
+   "measured": "1.87e-08 (max 5e-3)"
   },
   {
    "section": "export coupon_collar_back",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "1.38e-04 (max 1e-2)"
+   "measured": "7.99e-05 (max 1e-2)"
   },
   {
    "section": "export coupon_liner_front",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "5.14e-10 (max 5e-3)"
+   "measured": "5.45e-10 (max 5e-3)"
   },
   {
    "section": "export coupon_liner_front",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "2.97e-04 (max 1e-2)"
+   "measured": "3.00e-04 (max 1e-2)"
   },
   {
    "section": "export coupon_liner_back",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "6.71e-10 (max 5e-3)"
+   "measured": "6.70e-10 (max 5e-3)"
   },
   {
    "section": "export coupon_liner_back",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "2.97e-04 (max 1e-2)"
-  },
-  {
-   "section": "export coupon_mf",
-   "name": "STEP round trip volume",
-   "ok": true,
-   "measured": "2.02e-11 (max 5e-3)"
-  },
-  {
-   "section": "export coupon_mf",
-   "name": "3MF read back volume",
-   "ok": true,
-   "measured": "1.54e-05 (max 1e-2)"
+   "measured": "3.00e-04 (max 1e-2)"
   },
   {
    "section": "export coupon_rosette_base",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "1.43e-13 (max 5e-3)"
+   "measured": "2.92e-09 (max 5e-3)"
   },
   {
    "section": "export coupon_rosette_base",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "3.47e-04 (max 1e-2)"
+   "measured": "7.60e-04 (max 1e-2)"
   },
   {
    "section": "export coupon_rosette_link",
    "name": "STEP round trip volume",
    "ok": true,
-   "measured": "4.30e-08 (max 5e-3)"
+   "measured": "1.14e-14 (max 5e-3)"
   },
   {
    "section": "export coupon_rosette_link",
    "name": "3MF read back volume",
    "ok": true,
-   "measured": "3.74e-04 (max 1e-2)"
+   "measured": "3.70e-04 (max 1e-2)"
   }
  ]
 }

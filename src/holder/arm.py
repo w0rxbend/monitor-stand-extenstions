@@ -1,29 +1,36 @@
-"""Arm: base on the collar MF, two identical links, a head with an MF, three knobs.
+"""Arm: a turned pedestal that pans on the collar, a link, a tip, a camera head, knobs.
 
-Every joint is a lap joint with a 24 tooth Hirth rosette (90 degree flanks). The teeth
-converge on the joint axis, so every flank is a plane. A tooth and a gap have the same
-shape, so two rosettes mesh when their crests sit half a pitch apart. The phases below
-make that true at every joint when each joint angle is a multiple of 15 degrees, with the
-second link being the first one turned 180 degrees about its long axis.
+Kinematics. The pedestal turns on the collar's tail about a vertical axis: smooth pan.
+J1 and J2 are 24 tooth Hirth rosettes (15 degree index) that set reach and height. J3 is
+a smooth friction joint on a TPU ring: fine tilt. Every tilt axis is horizontal for any
+pan angle, so the horizon stays level without a roll joint.
 
-Every knuckle and link is a G2 skin: its outline (an arch, or a dog-bone of circles and
-G2 blends) with G2 rolls on both faces. The head rises from its knuckle into the MF as a
-smooth loft whose width follows a quintic ogee, so it reads turned, not stacked. A DIN 603
-carriage bolt's dome head bears on one face; its square neck in a square hole stops it
-turning. The knob on the other face holds the nut and bears on an ISO 7093 washer.
+Fasteners. Every joint is a spring stop (stops.py): an ISO 7379 shoulder screw whose
+knurled head is melted into a knob, five DIN 2093 springs hidden in a 2.5 mm spot face
+under the knob, and an M6 heat-set insert in the far part. Turn the knob until it stops.
 
-Frames. A rosette is built in its joint frame: axis +X, pitch plane x = 0, angles measured
-from +Y toward +Z. arm_base: foot bottom centre at the origin. arm_link: joint 1 at the
-origin, joint 2 at +Y link_pitch, body x 0..knuckle_t. arm_head: J3 at the origin, body
-x 0..knuckle_t, MF on top. knob: base on z = 0, axis +Z.
+Form. The pedestal is one turned profile of exact conics (a ball, a circular waist, a
+quarter-ellipse flare, an elliptic foot shoulder) joined G2, with one milled J1 flat.
+The link and the tip are G2 dog-bone skins. The head is one G2 skin whose side outline
+sweeps from the J3 block into the camera platform through a quarter ellipse. The knob is
+turned, with an elliptic crown.
+
+Frames. A rosette is built in its joint frame: axis +X, pitch plane x = 0, angles from +Y
+toward +Z. arm_base: pivot face centre at the origin, pan axis +Z, J1 on the flat at
+x = ball_flat_x. arm_link / arm_tip: end A at the origin, end B at +Y link_pitch, body
+x 0..link_t, inner (joint) face x = 0. arm_head: J3 at the origin, friction face x = 0,
+the block toward +X, the platform toward -X. knob: rim on z = 0, axis +Z.
 """
 
-from math import cos, radians, sin, sqrt
+from functools import cache
+from math import cos, radians, sin
 
 from build123d import (
+    Align,
     Axis,
     CenterArc,
     Compound,
+    Cone,
     EllipticalCenterArc,
     Face,
     Line,
@@ -34,7 +41,6 @@ from build123d import (
     Vector,
     Vertex,
     Wire,
-    extrude,
     loft,
     make_face,
     revolve,
@@ -42,11 +48,8 @@ from build123d import (
 
 from holder.common import (
     Check,
-    annulus_footprint,
+    SeatedInsert,
     at_least,
-    bearing_row,
-    contact_area,
-    hex_prism,
     named,
     one_solid,
     overhang_rows,
@@ -59,54 +62,106 @@ from holder.form import (
     BedLead,
     Frame,
     Roll,
-    corner_curve,
+    Turtle,
     curvature_jumps,
     g2_blend,
     g2_skin,
-    skin_profile,
-    soft_outline,
+    revolved,
 )
-from holder.mount import MountFace, foot_checks, foot_cutters, foot_slab
 from holder.params import (
-    M6_CARRIAGE,
-    M6_CLEAR,
-    M6_LARGE_WASHER,
-    M6_NECK_HOLE,
-    M6_NUT,
+    INSERT_M6,
+    INSERT_SINK,
     PETG_WALL,
-    PRELOAD_N,
+    PLATE_UNDER_HEAD,
+    QUARTER_CLEAR,
+    QUARTER_WASHER_SEAT,
+    RING_T,
+    SHOULDER_M6,
+    SPRING_B16,
+    WASHER_M8,
+    ZVE10_BODY,
+    ZVE10_SOCKET,
     Params,
 )
+from holder.stops import StopSpec
 
 PRINT = {
     "arm_base": (0, 0, -1),
     "arm_link": (1, 0, 0),
-    "arm_head": (0, 0, 1),
+    "arm_tip": (1, 0, 0),
+    "arm_head": (0, 1, 0),
     "knob": (0, 0, -1),
+    "j3_ring": (0, 0, -1),
 }
-MATERIAL = dict.fromkeys(PRINT, "PETG")
+MATERIAL = {**dict.fromkeys(PRINT, "PETG"), "j3_ring": "TPU95A"}
 BASE_PHASE = 11.25  # crests toward +X
 LINK_PHASE = 3.75  # crests toward -X, both ends
-HEAD_PHASE = 3.75  # crests toward -X
-ROSETTE_ROLL = Roll(1.2)  # knuckle r 14.5 - rosette r 13 leaves 1.5 of flat face
-FACE_ROLL = Roll(1.2)  # a buried corner of an upright outline must out-radius the roll
+ROSETTE_ROLL = Roll(1.2)  # knuckle r 15.5 - rosette r 13 leaves 2.5 of flat face
 LINK_BED = BedLead(0.6, 1.5)  # the link prints on its +X face
-BURY = 6.0  # an upright outline runs this far into the part it stands on
-BURY_SETBACK = 2.8  # its buried corners: radius 1.3, over the 1.2 roll
+HEAD_BED = BedLead(0.8, 2.0)  # the head prints on its +Y face
+HEAD_ROLL = Roll(2.0)
 WAIST_START_DEG = 55.0
 WAIST_RUN = 12.0
-TULIP_RISE = 12.0  # head ogee height, from the knuckle to the full MF plan
-TULIP_PITCH = 1.0  # mm between loft sections
-MF_BLOCK_TOP = BedLead(1.0, 3.0)  # the head prints MF down
+SPOT = 2.5  # every knob seat is a spot face this deep; the springs hide in it
+SPOT_D = WASHER_M8.outer + 0.4
+KNOB_RIM_GAP = 0.5  # knob rim above the face round its spot face
 KNOB_FLUTES = 24
 KNOB_FLUTE_R = 1.1
 KNOB_FLUTE_OFFSET = 0.35  # flute centres sit this far outside the knob wall
-KNOB_FLUTE_TOP = 11.0
 KNOB_BED = 0.6
 KNOB_CROWN_H = 3.0  # elliptic crown: an exact conic, G2 into the wall
 KNOB_CROWN_R = 11.0
 KNOB_CROWN_START = 25.0  # degrees above the crown's equator where the blend lands
-NUT_SINK = 5.5  # M6 nut pocket height in the knob
+KNOB_ROOF = 2.0
+HEAD_PRESS = 0.6  # the knurled screw head is melted into a pocket this much under its size
+RING_OUTER = 2 * 13.0
+RING_INNER = SHOULDER_M6.shoulder_d + 0.8
+J_SPRINGS = 5
+J_TARGET = 0.6  # design deflection of the joint springs, share of h0
+J3_TARGET = 0.5
+J_L1 = 20.0
+PIVOT_L1 = 40.0
+
+
+# --- Stops -------------------------------------------------------------------------------------
+
+
+def joint_stop(label: str) -> StopSpec:
+    """J3 sits softer: its band also carries the printed ring, and friction needs less."""
+    target = J3_TARGET if label == "J3" else J_TARGET
+    return StopSpec(label, SHOULDER_M6, SPRING_B16, J_SPRINGS, WASHER_M8, WASHER_M8,
+                    INSERT_M6, target, J_L1)
+
+
+def pivot_stop() -> StopSpec:
+    return StopSpec("pan pivot", SHOULDER_M6, SPRING_B16, J_SPRINGS, WASHER_M8, WASHER_M8,
+                    INSERT_M6, J_TARGET, PIVOT_L1)
+
+
+def pitch_gap(spec: Params) -> float:
+    """Axial gap between engaged rosettes that leaves flank_fit normal to a 45 degree flank."""
+    return spec.flank_fit / sin(radians(45))
+
+
+def link_t(spec: Params) -> float:
+    """Knuckle thickness: the near end's PETG under the spot face is the stop's clamped
+    length less the rosette gap and the insert sink, plus the spot face."""
+    return joint_stop("J").clamped - pitch_gap(spec) - INSERT_SINK + SPOT
+
+
+def ring_gap() -> float:
+    return 0.02  # the TPU ring is modeled this far off both faces
+
+
+def head_block_t() -> float:
+    """J3 block: clamped length less the ring, its gaps and the insert sink, plus the spot."""
+    return joint_stop("J3").clamped - RING_T - 2 * ring_gap() - INSERT_SINK + SPOT
+
+
+def knob_skirt() -> float:
+    """Knob rim to the screw head's underside: the stack above the seat less the spot face
+    and the rim gap."""
+    return joint_stop("J").above_seat - SPOT - KNOB_RIM_GAP
 
 
 # --- Rosette -----------------------------------------------------------------------------------
@@ -157,46 +212,104 @@ def rosette_band(spec: Params) -> Part:
     return revolve(Plane.XY.location * section, Axis.X, 360)
 
 
+def tooth_depth(spec: Params) -> float:
+    """How far a gap sinks below the pitch plane: the insert wall is measured below it."""
+    reach = spec.rosette_r_out + 1.0
+    return reach * sin(radians(360 / spec.teeth / 4)) + 0.05
+
+
 def with_rosette(body: Part, spec: Params, at: Vector, facing: float, phase: float) -> Part:
     teeth, gaps = rosette(spec, facing, phase)
     return body + Pos(at) * teeth - Pos(at) * gaps
 
 
-# --- Profiles ----------------------------------------------------------------------------------
+# --- Pedestal ------------------------------------------------------------------------------------
 
-ARC_BLEND_DEG = 25.0  # where the G2 blend leaves the knuckle circle
-SIDE_BLEND_DROP = 2.0  # how far below the circle centre the blend lands on the side
+BALL_LATITUDE = -40.0  # the ball starts here: 50 deg from down-facing, prints unsupported
+WAIST_R = 4.0
+FLARE = (13.0, 5.0)  # quarter ellipse: down, out
+SHOULDER = (4.0, 3.0)  # quarter ellipse: out, down
+FOOT_WALL = 2.0
+FOOT_LEAD = 1.2  # lead on the bed edge (the crease)
+FOOT_LEAD_TURN = 43.0  # the lead stands at 47 deg: the blend into it never dips under 45
+TURTLE_TRIM = 1.0
 
 
-def knuckle_outline(spec: Params, centre_z: float, end_z: float) -> Wire:
-    """Knuckle outline in (y, z), arc on top: a circle about the joint, quintic G2 blends to
-    two straight sides, and G2 corners at `end_z`, which is buried in the part below."""
-    radius, cz, run = spec.knuckle_r, centre_z, BURY_SETBACK
-    lift = radians(ARC_BLEND_DEG)
-    arc = CenterArc((0, cz), radius, ARC_BLEND_DEG, 180 - 2 * ARC_BLEND_DEG)
+def pedestal_turtle(spec: Params) -> Turtle:
+    """From the ball's top pole outward and down to the bed edge (y is height, 0 at the pole)."""
+    path = Turtle((0, 0), 0.0)
+    path.arc(spec.ball_r, BALL_LATITUDE - 90)
+    path.arc(WAIST_R, -BALL_LATITUDE)
+    path.ellipse(*FLARE, 90)
+    path.ellipse(*SHOULDER, -90)
+    path.line(FOOT_WALL)
+    path.arc(1.0, -FOOT_LEAD_TURN)
+    path.line(FOOT_LEAD)
+    return path
 
-    def blend(side: float) -> object:
-        angle = lift if side > 0 else radians(180) - lift
-        on_circle = Vector(radius * cos(angle), cz + radius * sin(angle))
-        inward = (Vector(0, cz) - on_circle).normalized()
-        travel = Vector(-sin(angle), cos(angle)) * (1 if side > 0 else -1)
-        circle = Frame(on_circle, travel, inward, 1 / radius)
-        line = Frame(Vector(side * radius, cz - SIDE_BLEND_DROP), Vector(0, 1),
-                     Vector(-side, 0), 0.0)
-        reach = 0.3 * (on_circle - line.point).length
-        if side > 0:
-            return g2_blend(line, circle, reach, reach)
-        return g2_blend(Frame(on_circle, -travel, inward, 1 / radius),
-                        Frame(line.point, Vector(0, -1), Vector(1, 0), 0.0), reach, reach)
 
-    right, left = blend(1.0), blend(-1.0)
-    low = cz - SIDE_BLEND_DROP
-    corner_left = corner_curve((-radius, low), (-radius, end_z), (radius, end_z), run)
-    corner_right = corner_curve((-radius, end_z), (radius, end_z), (radius, low), run)
-    edges = [arc, left, Line((-radius, low), corner_left @ 0), corner_left,
-             Line(corner_left @ 1, corner_right @ 0), corner_right,
-             Line(corner_right @ 1, (radius, low)), right]
-    return Wire(edges)
+def pedestal_profile(spec: Params) -> Wire:
+    path = pedestal_turtle(spec)
+    edges = path.soft(TURTLE_TRIM)
+    end = path.at
+    edges += [Line(end, (0, end.Y)), Line((0, end.Y), (0, 0))]
+    return Pos(0, -end.Y) * Wire(edges)
+
+
+def pedestal_height(spec: Params) -> float:
+    return -pedestal_turtle(spec).at.Y
+
+
+def foot_r(spec: Params) -> float:
+    return pedestal_turtle(spec).at.X
+
+
+def j1_local(spec: Params) -> Vector:
+    """J1 on the pedestal, in its frame: on the flat, at the ball centre's height."""
+    return Vector(spec.ball_flat_x, 0, pedestal_height(spec) - spec.ball_r)
+
+
+def neck_r(spec: Params) -> float:
+    """Narrowest radius of the pedestal: where the waist arc turns vertical."""
+    return spec.ball_r * cos(radians(BALL_LATITUDE)) - WAIST_R * (1 - cos(radians(
+        BALL_LATITUDE)))
+
+
+@cache
+def pedestal_skin(spec: Params) -> Part:
+    return revolved(pedestal_profile(spec))
+
+
+def base_knob_seat_x(spec: Params) -> float:
+    """J1's seat (the knob side, -X): the stop's clamped length back from link 1's insert."""
+    return spec.ball_flat_x + pitch_gap(spec) + INSERT_SINK - joint_stop("J1").clamped
+
+
+def build_base(spec: Params) -> Part:
+    """The turned pedestal: rosette flat on +X, knob flat on -X, the J1 shoulder bore
+    through the ball, and the pivot insert from the pivot face."""
+    body = pedestal_skin(spec)
+    j1 = j1_local(spec)
+    up = Vector(0, 0, 1)  # print-up: the pedestal prints foot down
+    clear = 2 * (spec.ball_r + 0.5)
+    body -= rod(clear, spec.ball_r, j1, (1, 0, 0))  # milled J1 rosette flat
+    face = base_knob_seat_x(spec) - SPOT
+    body -= rod(clear, spec.ball_r, Vector(face, 0, j1.Z), (-1, 0, 0))  # milled knob flat
+    body -= teardrop_rod(SPOT_D, SPOT + 1, Vector(face - 1, 0, j1.Z), (1, 0, 0), up)
+    body -= teardrop_rod(SHOULDER_M6.shoulder_d + 0.4, 2 * spec.ball_r,
+                         Vector(face - spec.ball_r, 0, j1.Z), (1, 0, 0), up)
+    body = with_rosette(body, spec, j1, 1.0, BASE_PHASE)
+    for cutter in pivot_insert().cutters():
+        body -= cutter
+    return named(body, "arm_base")
+
+
+def pivot_insert() -> SeatedInsert:
+    """The pan pivot's insert, pressed up into the pedestal from its pivot face."""
+    return SeatedInsert("pan pivot", INSERT_M6, Vector(0, 0, 0), Vector(0, 0, 1))
+
+
+# --- Link and tip --------------------------------------------------------------------------------
 
 
 def _on_yz(part: Part, x: float) -> Part:
@@ -240,170 +353,141 @@ def dog_bone(spec: Params) -> Face:
     return make_face(Wire(edges)).faces()[0]
 
 
-
-
-def neck_hole(origin: Vector, axis: Vector) -> list[Part]:
-    """Square hole for the carriage bolt neck, a corner on +Z (45 degree roofs in any pose),
-    then the round bolt hole through. `origin` is on the face the dome head bears on."""
-    side, depth = M6_NECK_HOLE
-    half = side / sqrt(2)
-    plane = Plane(origin=origin - axis * 1.0, x_dir=Vector(0, 0, 1), z_dir=axis)
-    diamond = Polygon((half, 0), (0, half), (-half, 0), (0, -half), align=None)
-    return [plane.location * extrude(diamond, amount=depth + 1.0)]
-
-
-def washer_footprint(floor: Vector, into: Vector) -> Part:
-    return annulus_footprint(floor, into, M6_LARGE_WASHER.outer, M6_LARGE_WASHER.inner)
-
-
-def dome_footprint(face: Vector, into: Vector) -> Part:
-    return annulus_footprint(face, into, M6_CARRIAGE.bearing_d, 0.2)
-
-
-# --- Parts -------------------------------------------------------------------------------------
-
-
-def j1_centre(spec: Params) -> Vector:
-    return Vector(spec.arm_x0, 0, spec.foot_t + spec.j1_rise)
-
-
-def base_skins(spec: Params) -> tuple[Part, Part]:
-    """(foot, upright) of arm_base, before they are fused and cut."""
-    centre = j1_centre(spec)
-    outline = knuckle_outline(spec, centre.Z, spec.foot_t - BURY)
-    upright = _on_yz(g2_skin(outline, spec.knuckle_t, FACE_ROLL, ROSETTE_ROLL),
-                     spec.arm_x0 - spec.knuckle_t)
-    return foot_slab(spec, spec.foot_t), upright
-
-
-def build_base(spec: Params) -> Part:
-    foot, upright = base_skins(spec)
-    centre = j1_centre(spec)
-    back_face = spec.arm_x0 - spec.knuckle_t
-    body = foot + upright
-    body -= teardrop_rod(M6_CLEAR, spec.knuckle_t + 2, Vector(back_face - 1, 0, centre.Z),
-                         Vector(1, 0, 0), Vector(0, 0, 1))
-    for cutter in neck_hole(Vector(back_face, 0, centre.Z), Vector(1, 0, 0)):
-        body -= cutter
-    body = with_rosette(body, spec, centre, 1.0, BASE_PHASE)
-    for cutter in foot_cutters(spec, spec.foot_t):
-        body -= cutter
-    return named(body, "arm_base")
-
-
+@cache
 def link_skin(spec: Params) -> Part:
-    return _on_yz(g2_skin(dog_bone(spec).outer_wire(), spec.knuckle_t, ROSETTE_ROLL, LINK_BED),
+    return _on_yz(g2_skin(dog_bone(spec).outer_wire(), link_t(spec), ROSETTE_ROLL, LINK_BED),
                   0.0)
 
 
+def link_inserts(spec: Params, ends: tuple[str, ...]) -> list[SeatedInsert]:
+    """Inserts pressed from the inner face toward +X (vertical in print) at the far ends."""
+    where = {"A": Vector(0, 0, 0), "B": Vector(0, spec.link_pitch, 0)}
+    return [SeatedInsert(f"end {end}", INSERT_M6, where[end], Vector(1, 0, 0))
+            for end in ends]
+
+
 def build_link(spec: Params) -> Part:
-    t = spec.knuckle_t
+    """J1 to J2: rosettes and inserts at both ends; the knobs sit on the parts beside it."""
     body = link_skin(spec)
     for end in (Vector(0, 0, 0), Vector(0, spec.link_pitch, 0)):
-        body -= rod(M6_CLEAR, t + 2, end + Vector(-1, 0, 0), Vector(1, 0, 0))
         body = with_rosette(body, spec, end, -1.0, LINK_PHASE)
-    for cutter in neck_hole(Vector(t, spec.link_pitch, 0), Vector(-1, 0, 0)):
-        body -= cutter
+    for insert in link_inserts(spec, ("A", "B")):
+        for cutter in insert.cutters():
+            body -= cutter
     return named(body, "arm_link")
 
 
-def head_mf_centre(spec: Params) -> Vector:
-    return Vector(spec.knuckle_t / 2, 0, spec.head_block_gap + spec.mf_depth)
+def build_tip(spec: Params) -> Part:
+    """J2 to J3: end A takes the J2 knob (spot face, shoulder bore, rosette); end B is a
+    flat friction face for the TPU ring, with the J3 insert."""
+    t = link_t(spec)
+    body = link_skin(spec)
+    body -= rod(SHOULDER_M6.shoulder_d + 0.4, t + 2, (-1, 0, 0), (1, 0, 0))
+    body -= rod(SPOT_D, SPOT + 1, Vector(t - SPOT, 0, 0), (1, 0, 0))
+    body = with_rosette(body, spec, Vector(0, 0, 0), -1.0, LINK_PHASE)
+    for cutter in link_inserts(spec, ("B",))[0].cutters():
+        body -= cutter
+    return named(body, "arm_tip")
 
 
-def head_mount_face(spec: Params) -> MountFace:
-    centre = head_mf_centre(spec)
-    # The port nut mouth is on the -Y face: under the camera deck, out of sight.
-    return MountFace("head MF", centre, Vector(0, -1, 0), spec.mf_size / 2 + 1.5)
+# --- Head ----------------------------------------------------------------------------------------
+
+HEAD_CORNER = (4.5, 5.0)  # the J3 block's lower corners: min radius 4.05 over the 2.0 roll
+HEAD_DROP = 4.0  # block bottom below the knuckle radius: the corner blends stay off the ring
+HEAD_UNDER_SWEEP = (10.0, 20.0)  # the platform underside sweeps into the friction face
+HEAD_KNOB_SWEEP = 8.0  # and on the knob side a narrower one: end radius 3.2 over the 2.0 roll
+PLATFORM_T = 9.0
+HEAD_TRIM = 1.5
 
 
-SHOULDER = 0.6  # the tulip starts this far outside the knuckle: a turned shoulder line
+def head_heights(spec: Params) -> tuple[float, float, float]:
+    """(top of the flat friction face, platform underside, platform top) above J3."""
+    face_top = spec.knuckle_r + 2.0
+    under = face_top + HEAD_UNDER_SWEEP[1]
+    return face_top, under, under + PLATFORM_T
 
 
-def _smoothstep(u: float) -> float:
-    """Quintic ogee: zero slope and zero curvature at both ends."""
-    return u * u * u * (10 - 15 * u + 6 * u * u)
+def head_turtle(spec: Params) -> Turtle:
+    """Side outline in (x, z), counter-clockwise from the top of the friction face: the J3
+    block rises into a platform through a quarter ellipse on each side."""
+    r, block, reach = spec.knuckle_r, head_block_t(), spec.platform_reach
+    sweep_x, sweep_z = HEAD_UNDER_SWEEP
+    face_top, under, top = head_heights(spec)
+    bottom = -(r + HEAD_DROP)
+    down, along = HEAD_CORNER
+    end_r = PLATFORM_T / 2
+    right = platform_right(spec)
+    path = Turtle((0, face_top), 270.0)
+    path.line(face_top - (bottom + down))
+    path.ellipse(down, along, 90)
+    path.line(block - 2 * along)
+    path.ellipse(along, down, 90)
+    path.line(face_top - (bottom + down))
+    path.ellipse(sweep_z, HEAD_KNOB_SWEEP, -90)
+    path.line(right - end_r - block - HEAD_KNOB_SWEEP)
+    path.arc(end_r, 180)
+    path.line(right - end_r + reach - end_r)
+    path.arc(end_r, 180)
+    path.line(reach - end_r - sweep_x)
+    path.ellipse(sweep_x, sweep_z, -90)
+    return path
 
 
-def _lead_inset(height: float, rule: BedLead) -> list[tuple[float, float]]:
-    """(depth below the top, inset) along the top bed lead of a skin profile, densely."""
-    profile = skin_profile(height, Roll(1.0), rule)
-    points = [edge @ (k / 64) for edge in profile.edges() for k in range(65)]
-    return sorted(((height - p.Y, p.X) for p in points if p.Y > height - rule.leg - rule.rise
-                   - 1.0), key=lambda pair: pair[0])
+def platform_right(spec: Params) -> float:
+    """The platform's +X end: just past the camera's end over the knob side."""
+    width, _height, _depth = ZVE10_BODY
+    centre = -spec.camera_x - ZVE10_SOCKET[0]
+    return centre + width / 2 + 2.0
 
 
-def _inset_at(depth: float, table: list[tuple[float, float]]) -> float:
-    for (d0, u0), (d1, u1) in zip(table, table[1:]):
-        if d0 <= depth <= d1:
-            return u0 if d1 - d0 < 1e-9 else u0 + (u1 - u0) * (depth - d0) / (d1 - d0)
-    return 0.0
+@cache
+def head_skin(spec: Params) -> Part:
+    outline = Wire(head_turtle(spec).soft(HEAD_TRIM, closed=True))
+    skin = g2_skin(outline, spec.head_t, HEAD_BED, HEAD_ROLL)
+    plane = Plane(origin=(0, spec.head_t / 2, 0), x_dir=(1, 0, 0), z_dir=(0, -1, 0))
+    return plane.location * skin
 
 
-def tulip_sections(spec: Params) -> list[Face]:
-    """Plan sections of the head, about 1 mm apart, from the knuckle shoulder to the MF face.
-
-    The width follows one smooth law: a quintic ogee up to the full MF plan, straight walls,
-    then the inset of a G2 bed lead (the head prints MF down). Dense, smooth sections keep
-    the loft from overshooting between them.
-    """
-    t, base = spec.knuckle_t, spec.head_block_gap
-    top = base + spec.mf_depth
-    small = (t + 2 * SHOULDER, 2 * spec.knuckle_r + 2 * SHOULDER, FACE_ROLL.setback + SHOULDER)
-    big = (spec.mf_size, spec.mf_size, spec.mf_setback)
-    lead = _lead_inset(spec.mf_depth, MF_BLOCK_TOP)
-    count = round(spec.mf_depth / TULIP_PITCH)
-    faces = []
-    for k in range(count + 1):
-        z = base + spec.mf_depth * k / count
-        share = _smoothstep(min((z - base) / TULIP_RISE, 1.0))
-        inset = _inset_at(top - z, lead)
-        w, d, corner = (a + (b - a) * share for a, b in zip(small, big))
-        faces.append(Pos(0, 0, z) * soft_outline_rect(w - 2 * inset, d - 2 * inset,
-                                                      corner - inset, (t / 2, 0)))
-    return faces
-
-
-def soft_outline_rect(width: float, depth: float, setback: float,
-                      centre: tuple[float, float]) -> Face:
-    cx, cy = centre
-    hx, hy = width / 2, depth / 2
-    corners = [(cx + hx, cy - hy), (cx + hx, cy + hy), (cx - hx, cy + hy), (cx - hx, cy - hy)]
-    return make_face(soft_outline(corners, [setback] * 4)).faces()[0]
-
-
-def head_skins(spec: Params) -> tuple[Part, Part]:
-    """(knuckle, tulip) of arm_head. The knuckle arc points down; its top is buried."""
-    outline = knuckle_outline(spec, 0.0, -(spec.head_block_gap + BURY)).mirror(Plane.XZ)
-    knuckle = _on_yz(g2_skin(outline, spec.knuckle_t, ROSETTE_ROLL, FACE_ROLL), 0.0)
-    return knuckle, loft(tulip_sections(spec), ruled=False)
+def camera_socket(spec: Params) -> Vector:
+    """Where the camera's tripod socket sits: on the platform top, past arm_tip."""
+    return Vector(-spec.camera_x, 0, head_heights(spec)[2])
 
 
 def build_head(spec: Params) -> Part:
-    t = spec.knuckle_t
-    knuckle, tulip = head_skins(spec)
-    body = knuckle + tulip
-    tip = Vector(0, 0, -1)  # print-up: the head prints MF down
-    body -= teardrop_rod(M6_CLEAR, t + 2, Vector(-1, 0, 0), Vector(1, 0, 0), tip)
-    body = with_rosette(body, spec, Vector(0, 0, 0), -1.0, HEAD_PHASE)
-    for cutter in head_mount_face(spec).cutters(spec):
-        body -= cutter
+    block = head_block_t()
+    up = Vector(0, -1, 0)  # print-up: the head prints on its +Y face
+    body = head_skin(spec)
+    body -= teardrop_rod(SHOULDER_M6.shoulder_d + 0.4, block + 2, (-1, 0, 0), (1, 0, 0), up)
+    body -= teardrop_rod(SPOT_D, SPOT + 1, (block - SPOT, 0, 0), (1, 0, 0), up)
+    socket = camera_socket(spec)
+    _face_top, under, top = head_heights(spec)
+    body -= teardrop_rod(QUARTER_CLEAR, PLATFORM_T + 2, socket - Vector(0, 0, PLATFORM_T + 1),
+                         (0, 0, 1), up)
+    seat = top - PLATE_UNDER_HEAD
+    body -= teardrop_rod(QUARTER_WASHER_SEAT, seat - under + 1,
+                         Vector(socket.X, 0, under - 1), (0, 0, 1), up)
     return named(body, "arm_head")
 
 
-def knob_height(spec: Params) -> float:
-    return spec.knob_tip_room + spec.knob_roof + 0.5
+# --- Knob and ring -------------------------------------------------------------------------------
+
+
+KNOB_CEILING = 1.4  # 45 degree ring over the head pocket: the flat ceiling bridges <= 10
+
+
+def knob_height() -> float:
+    return knob_skirt() + SHOULDER_M6.head_k + KNOB_CEILING + KNOB_ROOF + KNOB_CROWN_H
 
 
 def knob_profile_wire(spec: Params) -> Wire:
     """(r, z): bed lead, straight wall, G2 blend, an elliptic crown (exact conic) to the axis."""
-    radius, height = spec.knob_d / 2, knob_height(spec)
+    radius, height = spec.knuckle_r * 0.9, knob_height()
     a, b = KNOB_CROWN_R, KNOB_CROWN_H
     theta = radians(KNOB_CROWN_START)
     on_crown = Vector(a * cos(theta), height - b + b * sin(theta))
     travel = Vector(-a * sin(theta), b * cos(theta)).normalized()
     curvature = a * b / (a * a * sin(theta) ** 2 + b * b * cos(theta) ** 2) ** 1.5
-    inward = Vector(-travel.Y, travel.X) if travel.X < 0 else Vector(travel.Y, -travel.X)
+    inward = Vector(travel.Y, -travel.X)
     if inward.Y > 0:
         inward = -inward
     wall_top = Vector(radius, on_crown.Y - 3.2)
@@ -417,24 +501,39 @@ def knob_profile_wire(spec: Params) -> Wire:
                  Line((0, height), (0, 0))])
 
 
+def knob_d(spec: Params) -> float:
+    return 2 * spec.knuckle_r * 0.9
+
+
 def build_knob(spec: Params) -> Part:
     # Two 180 degree halves: a single 360 degree revolve of the crown and its G2 blend
     # does not survive the STEP round trip (it reads back 12 % small and invalid).
     profile = Plane.XZ.location * make_face(knob_profile_wire(spec)).faces()[0]
     half = revolve(profile, Axis.Z, 180)
     body = half + half.rotate(Axis.Z, 180)
-    radius = spec.knob_d / 2
+    radius = knob_d(spec) / 2
     for k in range(KNOB_FLUTES):
         angle = radians(360 / KNOB_FLUTES * (k + 0.5))
         reach = radius + KNOB_FLUTE_OFFSET
         centre = Vector(reach * cos(angle), reach * sin(angle), -1)
-        body -= rod(2 * KNOB_FLUTE_R, KNOB_FLUTE_TOP + 1, centre, Vector(0, 0, 1))
-    body -= hex_prism(M6_NUT.pocket_af, NUT_SINK + 1, Plane(origin=(0, 0, -1)))
-    body -= rod(M6_CLEAR, spec.knob_tip_room + 1, Vector(0, 0, -1), Vector(0, 0, 1))
+        body -= rod(2 * KNOB_FLUTE_R, knob_skirt() + SHOULDER_M6.head_k + 1, centre, (0, 0, 1))
+    skirt = knob_skirt()
+    body -= rod(SPOT_D + 0.2, skirt + 1, (0, 0, -1), (0, 0, 1))
+    pocket = SHOULDER_M6.head_d - HEAD_PRESS
+    body -= rod(pocket, SHOULDER_M6.head_k + 0.01, (0, 0, skirt), (0, 0, 1))
+    top = skirt + SHOULDER_M6.head_k
+    body -= Pos(0, 0, top) * Cone(pocket / 2, pocket / 2 - KNOB_CEILING, KNOB_CEILING,
+                                  align=(Align.CENTER, Align.CENTER, Align.MIN))
     return named(body, "knob")
 
 
-# --- Checks ------------------------------------------------------------------------------------
+def build_ring(spec: Params) -> Part:
+    ring = rod(RING_OUTER, RING_T, (0, 0, 0), (0, 0, 1))
+    ring -= rod(RING_INNER, RING_T + 2, (0, 0, -1), (0, 0, 1))
+    return named(ring, "j3_ring")
+
+
+# --- Checks --------------------------------------------------------------------------------------
 
 
 def _printed(part: Part) -> list[Check]:
@@ -443,57 +542,78 @@ def _printed(part: Part) -> list[Check]:
 
 
 def checks_base(part: Part, spec: Params) -> list[Check]:
-    rows = _printed(part) + foot_checks(part, spec)
-    foot, upright = base_skins(spec)
-    rows += skin_rows(foot, "arm_base foot", lambda c: abs(c.Z) < 1e-4)
-    rows += skin_rows(upright, "arm_base upright", lambda _c: False)
-    face = Vector(spec.arm_x0 - spec.knuckle_t, 0, j1_centre(spec).Z)
-    rows.append(bearing_row("J1 carriage dome on arm_base", PRELOAD_N["joint"],
-                            contact_area(part, dome_footprint(face, Vector(1, 0, 0)))))
+    rows = _printed(part)
+    on_bed = lambda c: abs(c.Z) < 1e-4  # noqa: E731
+    rows += skin_rows(part, "arm_base", on_bed, pedestal_skin(spec))
+    profile = pedestal_profile(spec)
+    jump = max(curvature_jumps(Wire(profile.edges()[:-3])))
+    rows.append(Check("arm_base profile curvature jump (G2)", jump <= 1e-3,
+                      f"{jump:.2e} /mm (max 1e-3)"))
+    rows += pivot_insert().checks(part)
+    rows.append(at_least("arm_base neck radius", neck_r(spec), 11.0))
+    return rows
+
+
+def _link_checks(part: Part, spec: Params, name: str) -> list[Check]:
+    t = link_t(spec)
+    rows = _printed(part)
+    rows += skin_rows(part, name, lambda c: abs(c.X - t) < 1e-4, link_skin(spec))
+    jump = max(curvature_jumps(dog_bone(spec).outer_wire()))
+    rows.append(Check(f"{name} plan curvature jump (G2)", jump <= 1e-3, f"{jump:.2e} /mm"))
+    ends = ("A", "B") if name == "arm_link" else ("B",)
+    wall = tooth_depth(spec) if name == "arm_link" else 0.0
+    for insert in link_inserts(spec, ends):
+        rows += insert.checks(part, wall_from=wall)
+        rows.append(at_least(f"{name} PETG under the {insert.label} insert hole",
+                             t - insert.depth, 0.6))
     return rows
 
 
 def checks_link(part: Part, spec: Params) -> list[Check]:
-    t = spec.knuckle_t
-    rows = _printed(part)
-    rows += skin_rows(link_skin(spec), "arm_link", lambda c: abs(c.X - t) < 1e-4)
-    jump = max(curvature_jumps(dog_bone(spec).outer_wire()))
-    rows.append(Check("arm_link plan curvature jump (G2)", jump <= 1e-3, f"{jump:.2e} /mm"))
-    rows.append(at_least("arm_link waist width", spec.link_waist, 20.0))
-    floor = Vector(t, 0, 0)
-    rows.append(bearing_row("knob washer on arm_link", PRELOAD_N["joint"],
-                            contact_area(part, washer_footprint(floor, Vector(-1, 0, 0)))))
-    face = Vector(t, spec.link_pitch, 0)
-    rows.append(bearing_row("carriage dome on arm_link", PRELOAD_N["joint"],
-                            contact_area(part, dome_footprint(face, Vector(-1, 0, 0)))))
-    return rows
+    return _link_checks(part, spec, "arm_link")
+
+
+def checks_tip(part: Part, spec: Params) -> list[Check]:
+    return _link_checks(part, spec, "arm_tip")
 
 
 def checks_head(part: Part, spec: Params) -> list[Check]:
-    t = spec.knuckle_t
     rows = _printed(part)
-    knuckle, tulip = head_skins(spec)
-    top = spec.head_block_gap + spec.mf_depth
-    rows += skin_rows(knuckle, "arm_head knuckle", lambda _c: False)
-    rows += skin_rows(tulip, "arm_head tulip", lambda c: abs(c.Z - top) < 1e-4
-                      or abs(c.Z - spec.head_block_gap) < 1e-4)
-    floor = Vector(t, 0, 0)
-    rows.append(bearing_row("J3 knob washer on arm_head", PRELOAD_N["joint"],
-                            contact_area(part, washer_footprint(floor, Vector(-1, 0, 0)))))
-    rows += head_mount_face(spec).checks(part, spec)
+    on_bed = lambda c: abs(c.Y - spec.head_t / 2) < 1e-4  # noqa: E731
+    rows += skin_rows(part, "arm_head", on_bed, head_skin(spec))
+    jump = max(curvature_jumps(Wire(head_turtle(spec).soft(HEAD_TRIM, closed=True))))
+    rows.append(Check("arm_head side outline curvature jump (G2)", jump <= 1e-3,
+                      f"{jump:.2e} /mm"))
+    flat = spec.head_t / 2 - HEAD_ROLL.setback
+    rows.append(at_least("arm_head J3 face flat half-width (ring needs 13)", flat,
+                         RING_OUTER / 2))
+    face_top, _under, _top = head_heights(spec)
+    rows.append(at_least("arm_head friction face flat above J3 (ring needs 13)", face_top,
+                         RING_OUTER / 2))
+    rows.append(at_least("arm_head friction face flat below J3 (ring needs 13 + blend)",
+                         spec.knuckle_r + HEAD_DROP - HEAD_CORNER[0] - HEAD_TRIM,
+                         RING_OUTER / 2))
     return rows
 
 
 def checks_knob(part: Part, spec: Params) -> list[Check]:
     rows = _printed(part)
-    edge = M6_CLEAR / 2  # the crown is lowest over the bore at the bore's edge
-    crown = knob_height(spec) - KNOB_CROWN_H * (1 - sqrt(1 - (edge / KNOB_CROWN_R) ** 2))
-    rows.append(at_least("knob roof over the bolt bore", crown - spec.knob_tip_room,
-                         PETG_WALL))
-    flute_floor = spec.knob_d / 2 + KNOB_FLUTE_OFFSET - KNOB_FLUTE_R
-    nut_wall = flute_floor - M6_NUT.pocket_af / sqrt(3)
-    rows.append(at_least("knob wall round the nut corner, at a flute", nut_wall, PETG_WALL))
+    rows.append(at_least("knob roof over the screw head pocket",
+                         knob_height() - KNOB_CROWN_H - knob_skirt() - SHOULDER_M6.head_k
+                         - KNOB_CEILING, PETG_WALL))
+    flute_floor = knob_d(spec) / 2 + KNOB_FLUTE_OFFSET - KNOB_FLUTE_R
+    rows.append(at_least("knob wall round the skirt bore, at a flute",
+                         flute_floor - (SPOT_D + 0.2) / 2, PETG_WALL))
+    rows.append(at_least("knob skirt over the head washer", knob_skirt(), WASHER_M8.t))
     outside = Wire(knob_profile_wire(spec).edges()[1:-1])  # not the base or the axis
     jump = max(curvature_jumps(outside))
     rows.append(Check("knob crown curvature jump (G2)", jump <= 1e-3, f"{jump:.2e} /mm"))
+    return rows
+
+
+def checks_ring(part: Part, spec: Params) -> list[Check]:
+    rows = _printed(part)
+    rows.append(at_least("j3_ring radial wall", (RING_OUTER - RING_INNER) / 2, 1.2))
+    rows.append(at_least("j3_ring outer edge inside the arm_tip knuckle face",
+                         spec.knuckle_r - ROSETTE_ROLL.setback - RING_OUTER / 2, 0.3))
     return rows

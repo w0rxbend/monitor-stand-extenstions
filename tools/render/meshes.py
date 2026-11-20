@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from build123d import Part, Pos
+from build123d import Box, Part, Pos
 from OCP.BRep import BRep_Tool
 from OCP.BRepLib import BRepLib_ToolTriangulatedShape
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
@@ -24,8 +24,13 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from holder.assembly import hero, joints, printed_parts  # noqa: E402
+from holder.assembly import hero, joints  # noqa: E402
+from holder.common import print_orientation  # noqa: E402
 from holder.params import Params  # noqa: E402
+from holder.registry import MATERIAL, PRINT, all_parts  # noqa: E402
+
+LAYOUT = ("collar_front", "collar_back", "liner_front", "liner_back", "seam_cap_1", "arm_base",
+          "arm_link", "arm_tip", "arm_head", "knob", "j3_ring")
 
 WORK = ROOT / "out" / "render"
 RENDERS = ROOT / "docs" / "renders"
@@ -34,7 +39,9 @@ BACKGROUND = (245, 245, 247, 255)
 MARGIN = 0.06
 BLENDER = ["flatpak", "run", "org.blender.Blender", "-b", "--factory-startup", "--python"]
 COLLAR = {"collar_front", "collar_back", "liner_front", "liner_back"}
-HEAD = {"arm_head", "arm_link 2", "J3 knob"}
+HEAD = {"arm_head", "arm_tip", "j3_ring", "J3 knob"}
+BASE = {"arm_base", "J1 knob"}
+LAYOUT_GAP = 18.0  # mm between parts on the print-layout picture
 
 
 def _face_lines(face, first: int) -> tuple[list[str], int]:
@@ -80,15 +87,32 @@ def _mesh(part: Part, name: str) -> str:
     return str(path)
 
 
-def _accessory_row(spec: Params) -> dict[str, Part]:
-    """Post, phone and gopro in a row, cam_plate behind, zve10 in front: the accessory picture."""
-    parts = printed_parts(spec)
-    placed = {}
-    for x, name in ((-60.0, "post"), (0.0, "phone"), (60.0, "gopro")):
-        placed[f"row {name}"] = Pos(x, 400, 0) * parts[name]
-    placed["row cam_plate"] = Pos(0, 520, 0) * parts["cam_plate"]
-    placed["row zve10"] = Pos(0, 320, 0) * parts["zve10"]
+def _layout(spec: Params) -> dict[str, Part]:
+    """Every printed part in its print pose, in a row on the bed: the parts picture."""
+    parts = all_parts(spec)
+    placed, x = {}, 0.0
+    for name in LAYOUT:
+        printed = print_orientation(parts[name], PRINT[name])
+        size = printed.bounding_box().size
+        placed[f"layout {name}"] = Pos(x + size.X / 2, 600, 0) * printed
+        x += size.X + LAYOUT_GAP
     return placed
+
+
+def _section(built, spec: Params) -> dict[str, Part]:
+    """J2 and J3 cut through their axes (the +Y half removed): shoulder screws, springs,
+    washers, inserts, knobs, the TPU ring."""
+    _j1, j2, j3 = joints(spec)
+    keep = {}
+    for name, item in built.items.items():
+        if item.chain not in ("link", "tip", "head") or name == "zve10 camera":
+            continue
+        for label, centre in (("J2", j2), ("J3", j3)):
+            box = Pos(centre.X, centre.Y - 60, centre.Z) * Box(120, 120, 60)
+            cut = item.part & box
+            if cut is not None and cut.solids() and cut.volume > 1e-3:
+                keep[f"section {label} {name}"] = (Pos(0, 0, 0) * cut, item.finish)
+    return keep
 
 
 def manifest(spec: Params) -> dict:
@@ -97,38 +121,51 @@ def manifest(spec: Params) -> dict:
     objects = []
     for name, item in built.items.items():
         groups = ["hero"]
-        if name in COLLAR | {"column"}:
+        cap = name.startswith("seam_cap")
+        if name in COLLAR | {"column"} or name.startswith("seam"):
             groups.append("collar")
-        if name in COLLAR:
+        if name in COLLAR or cap:
             groups.append("plan")
-        if name in {"collar_front", "collar_back"}:
+        if name in {"collar_front", "collar_back"} or cap:
             groups.append("shells")
         if name in HEAD:
             groups.append("head")
+        if name in BASE:
+            groups.append("base")
         objects.append({"name": name, "mesh": _mesh(item.part, name), "finish": item.finish,
                         "groups": groups})
-    for name, part in _accessory_row(spec).items():
-        objects.append({"name": name, "mesh": _mesh(part, name), "finish": "petg",
-                        "groups": ["accessories"]})
-    j1, _j2, _j3 = joints(spec)
-    knob_detail = [j1.X + 8, j1.Y, j1.Z, 34]
+    for name, part in _layout(spec).items():
+        finish = "tpu" if MATERIAL[name.split(" ", 1)[1]] == "TPU95A" else "petg"
+        objects.append({"name": name, "mesh": _mesh(part, name), "finish": finish,
+                        "groups": ["parts"]})
+    for name, (part, finish) in _section(built, spec).items():
+        objects.append({"name": name, "mesh": _mesh(part, name), "finish": finish,
+                        "groups": ["section"]})
+    j1, j2, _j3 = joints(spec)
+    detail = [j2.X - 5, j2.Y, j2.Z, 40]
     shots = [
-        {"name": "hero", "group": "hero", "azimuth": 215, "elevation": 18, "size": [2000, 2200],
+        {"name": "hero", "group": "hero", "azimuth": 215, "elevation": 16, "size": [2000, 2400],
          "lens": 70},
-        {"name": "side", "group": "hero", "azimuth": -90, "elevation": 2, "size": [1800, 2000],
+        {"name": "side", "group": "hero", "azimuth": -90, "elevation": 2, "size": [1800, 2200],
+         "lens": 90},
+        {"name": "front", "group": "hero", "azimuth": 0, "elevation": 8, "size": [1800, 2200],
          "lens": 90},
         {"name": "top", "group": "plan", "azimuth": 0, "elevation": 90, "size": [1800, 1800],
          "lens": 120},
-        {"name": "detail", "group": "hero", "azimuth": 235, "elevation": 22,
-         "size": [1800, 1400], "lens": 100, "detail": knob_detail, "fstop": 8.0},
-        {"name": "collar", "group": "collar", "azimuth": 215, "elevation": 30,
+        {"name": "detail", "group": "hero", "azimuth": 145, "elevation": 18,
+         "size": [1800, 1400], "lens": 100, "detail": detail, "fstop": 8.0},
+        {"name": "collar", "group": "collar", "azimuth": 150, "elevation": 28,
          "size": [1800, 1400], "lens": 85},
+        {"name": "section", "group": "section", "azimuth": 180, "elevation": 10,
+         "size": [1800, 1600], "lens": 90},
         {"name": "zebra", "group": "shells", "azimuth": 215, "elevation": 30, "size": [1600, 1200],
          "lens": 85, "zebra": True},
         {"name": "zebra_head", "group": "head", "azimuth": 230, "elevation": 15,
          "size": [1400, 1400], "lens": 85, "zebra": True},
-        {"name": "accessories", "group": "accessories", "azimuth": 200, "elevation": 32,
-         "size": [2200, 1400], "lens": 70},
+        {"name": "zebra_base", "group": "base", "azimuth": 200, "elevation": 20,
+         "size": [1400, 1400], "lens": 85, "zebra": True},
+        {"name": "parts", "group": "parts", "azimuth": 200, "elevation": 35,
+         "size": [2400, 1200], "lens": 70},
     ]
     return {"objects": objects, "shots": shots, "out": str(WORK / "png")}
 
