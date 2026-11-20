@@ -1,3 +1,5 @@
+> Superseded: [DESIGN.md](DESIGN.md) is the v0.4.0 brief (collar, Hirth arm, MF-40). This file is the earlier band-and-block plan, kept as history.
+
 # Monitor stand holder: plan
 
 CAD as code: build123d, Python 3.12 via uv. Agent loop per task: edit, build, `pytest`, look at the PNG previews against sketch 5.

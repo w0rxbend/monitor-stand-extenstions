@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Holder. Three cameras behind the monitor.</title>
-  <meta name="description" content="A clamp for the monitor-stand column and printed 1/4-inch mounts for cameras, a phone, and a GoPro.">
+  <title>Holder. One collar, one arm, one camera.</title>
+  <meta name="description" content="A PETG collar for the monitor-stand column, a three-joint Hirth arm, and printed mounts for a ZV-E10, a phone, and a GoPro.">
   <link rel="stylesheet" href="site.css">
 </head>
 <body>
@@ -13,10 +13,10 @@
     <a class="word" href="#content">Holder</a>
     <nav aria-label="On this page">
       <ul>
-        <li><a href="#shelf">Shelf</a></li>
+        <li><a href="#collar">Collar</a></li>
         <li><a href="#arm">Arm</a></li>
-        <li><a href="#phone">Phone</a></li>
-        <li><a href="#gopro">GoPro</a></li>
+        <li><a href="#form">Form</a></li>
+        <li><a href="#mounts">Mounts</a></li>
         <li><a href="#specs">Specs</a></li>
       </ul>
     </nav>
@@ -24,53 +24,42 @@
 
   <main id="content">
     <section class="hero">
-      <h1>Behind the monitor.</h1>
-      <p class="lede">Three cameras on one plate. Two hinges. One 1/4-inch screw into the clamp. Outer corners are circular arcs.</p>
+      <h1>One piece on the column.</h1>
+      <p class="lede">A collar, a three-joint arm, a ZV-E10. No visible nuts. Every screw length comes from a checked stack.</p>
       <div class="frame">
-        <img src="renders/hero.png" alt="Shaded STL mesh of the clamp block, a two-hinge arm, and a long camera plate." width="1600" height="1000">
+        <img src="renders/hero.png" alt="Render of the collar on the column, the three-joint arm, and a ZV-E10 on its plate.">
       </div>
     </section>
 
     <ul class="facts">
-      <li><strong>3</strong><span>cameras</span></li>
-      <li><strong>2</strong><span>hinges</span></li>
-      <li><strong>1/4"</strong><span>each screw</span></li>
+      <li><strong>24</strong><span>rosette teeth</span></li>
+      <li><strong>15&deg;</strong><span>index step</span></li>
+      <li><strong>1e-6</strong><span>mm&sup3; clash limit</span></li>
     </ul>
 
-    <section class="chapter" id="shelf">
-      <h2>One screw from below.</h2>
-      <p>The center hole is fixed. Each side slot moves that camera from 70 to 110 mm away. The screw goes up into the camera. A second screw, at the back, holds the plate.</p>
-      <img src="renders/platform.png" alt="Shaded STL mesh of the camera plate, with two slots and a center hole." width="1600" height="1000">
+    <section class="chapter" id="collar">
+      <h2>PETG holds. TPU grips.</h2>
+      <p>Two PETG shells carry the clamp load. A 2 mm TPU liner with 45&deg; ribs grips the column. Four seam screws run inside the wall, heads toward the monitor. The nuts slide in from the bore and the liner hides them.</p>
+      <img src="renders/collar.png" alt="Render of the two collar shells and the ribbed liner on the column.">
     </section>
 
     <section class="chapter" id="arm">
-      <h2>One hinge, or two.</h2>
-      <p>The base and the link are one hinge. The mid link makes two. An M6 bolt is the axle. The knob and the washers are bought.</p>
-      <img src="renders/arm.png" alt="Shaded STL mesh of the block with a one-hinge arm on its top face." width="1600" height="1000">
+      <h2>Teeth, not friction.</h2>
+      <p>Each joint is a 24-tooth Hirth rosette. Lift the knob 2.2 mm, turn 15&deg;, tighten. The two links are one part, the second turned over.</p>
+      <img src="renders/detail.png" alt="Close render of joint J1: base rosette, link, steel washer, and turned knob.">
     </section>
 
-    <section class="chapter" id="phone">
-      <h2>Use the clamp you have.</h2>
-      <p>Print the pocket, not another cradle. The ear sits between two walls. An M3 screw clamps it. The foot still uses a 1/4-inch screw. Ear width and the hole were scaled from a photo, not measured.</p>
-      <img src="renders/phone.png" alt="Shaded STL mesh of the phone ear pocket, a pad with two side walls and two holes." width="1600" height="1000">
+    <section class="chapter" id="form">
+      <h2>Curves that do not show a seam.</h2>
+      <p>Lines meet quintic corners with zero curvature at the join. The spine is an elliptic scoop. Zebra stripes stay continuous across every join.</p>
+      <img src="renders/zebra.png" alt="Zebra-stripe render of the collar shells.">
+      <img src="renders/side.png" alt="Side render of the device on the column.">
     </section>
 
-    <section class="chapter" id="gopro">
-      <h2>Buy the buckle.</h2>
-      <p>Print the foot, not the prongs. A 1/4-inch screw drops into the boss and the buckle threads onto it.</p>
-      <img src="renders/gopro.png" alt="Shaded STL mesh of the GoPro foot, with a mounting hole and a round boss." width="1600" height="1000">
-    </section>
-
-    <section class="chapter" id="zve10">
-      <h2>One ZV-E10.</h2>
-      <p>The body is 115.2 mm wide, so it does not share the three-camera plate. The socket position is unpublished. The screw sits in a slot.</p>
-      <img src="renders/zve10.png" alt="Shaded STL mesh of the ZV-E10 plate, with a lip, a slot, and a rear mounting hole." width="1600" height="1000">
-    </section>
-
-    <section class="chapter" id="post">
-      <h2>Or skip the arm.</h2>
-      <p>The post raises the same 32 mm face. A ball head you already own bolts to that screw.</p>
-      <img src="renders/post.png" alt="Shaded STL mesh of the post, a column between two square pads." width="1600" height="1000">
+    <section class="chapter" id="mounts">
+      <h2>One foot for everything.</h2>
+      <p>Every accessory has the same 40 mm foot with four M3 screws. It fits the collar, the arm head, or the post.</p>
+      <img src="renders/accessories.png" alt="Render of the post, phone pocket, GoPro foot, camera plate, and ZV-E10 plate.">
     </section>
 
     <section class="specs" id="specs">
@@ -78,23 +67,19 @@
       <dl>
         <div>
           <dt>Column</dt>
-          <dd>40.2 mm wide, 55.5 mm deep. A TPU band in two halves is the clamp. The ribs still cut into the column, so do not print the band yet.</dd>
+          <dd>40.2 &times; 55.5 mm, corner radius 12 (estimated). Rib tips 0.25 mm off the column.</dd>
         </div>
         <div>
-          <dt>Foot</dt>
-          <dd>Four M3 nuts on a 20 mm square, and one 1/4"-20 nut in the center. Bolts enter from above.</dd>
+          <dt>Screws</dt>
+          <dd>4 &times; M3&times;35 seam, 8 &times; M3&times;12 feet, 3 &times; M6&times;30 joints, one 1/4"-20 &times; 3/8" camera screw.</dd>
         </div>
         <div>
-          <dt>Plate</dt>
-          <dd>300 × 64 × 8 mm, PETG. Center hole, two slots, one mounting hole at the back.</dd>
-        </div>
-        <div>
-          <dt>Hinges</dt>
-          <dd>M6 clearance, 6.6 mm. Steel washers. The tooth lock is bought, not printed.</dd>
+          <dt>Payload</dt>
+          <dd>Checked for 1.0 kg at a 188.5 mm lever (estimated).</dd>
         </div>
         <div>
           <dt>Pictures</dt>
-          <dd>Shaded from the STL meshes. Not photographs, and not a printed fit.</dd>
+          <dd>Cycles renders of the exported solids. Not photographs, and not a printed fit.</dd>
         </div>
       </dl>
     </section>
@@ -102,7 +87,7 @@
 
   <footer class="foot">
     <a href="https://github.com/w0rxbend/monitor-stand-extenstions/releases/latest">Download STEP, STL, and 3MF</a>
-    <a href="https://github.com/w0rxbend/monitor-stand-extenstions#quick-start">Build the clamp</a>
+    <a href="https://github.com/w0rxbend/monitor-stand-extenstions#assembly">Build it</a>
   </footer>
 </body>
 </html>
