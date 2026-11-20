@@ -3,7 +3,8 @@
     flatpak run org.blender.Blender -b --factory-startup --python tools/render/scene.py \
         -- <manifest.json>
 
-tools/render/meshes.py writes the manifest and one STL per solid (mm, assembly pose).
+tools/render/meshes.py writes the manifest and one OBJ per solid (mm, assembly pose, exact
+normals).
 Lights, finishes, crop and the shadow catcher are ported from worxboard-ergo tools/render.py.
 The pictures show a design that has not been printed.
 """
@@ -14,12 +15,10 @@ from dataclasses import dataclass
 from math import cos, radians, sin
 from pathlib import Path
 
-import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
 MM = 0.001
-WELD_MM, SHARP_DEG = 0.002, 32.0
 SAMPLES = 96
 SENSOR_MM = 36.0
 FRAME_FILL = 0.84
@@ -41,6 +40,7 @@ FINISHES = {
     "tpu": Finish("#121314", 0.8, grain=0.3, grain_mm=0.3),
     "steel": Finish("#c4c6c9", 0.35, metallic=1.0),
     "black_steel": Finish("#1b1c1e", 0.4, metallic=1.0),
+    "brass": Finish("#b08d57", 0.3, metallic=1.0),
     "column": Finish("#b8bbbf", 0.3, metallic=1.0, grain=0.15, grain_mm=0.1),
     "camera": Finish("#1a1b1d", 0.55, grain=0.4, grain_mm=0.3),
     "zebra": Finish("#050505", 0.04, coat=1.0),
@@ -90,18 +90,13 @@ def material_of(name):
 
 
 def import_mesh(entry):
+    """OBJ from meshes.py: mm, Z up, the CAD surface's own normals at every node."""
     before = set(bpy.data.objects)
-    bpy.ops.wm.stl_import(filepath=entry["stl"], global_scale=MM)
+    bpy.ops.wm.obj_import(filepath=entry["mesh"], global_scale=MM, forward_axis="Y",
+                          up_axis="Z")
     placed = (set(bpy.data.objects) - before).pop()
     placed.name = entry["name"]
     mesh = placed.data
-    welded = bmesh.new()
-    welded.from_mesh(mesh)
-    bmesh.ops.remove_doubles(welded, verts=welded.verts, dist=WELD_MM * MM)
-    welded.to_mesh(mesh)
-    welded.free()
-    mesh.shade_smooth()
-    mesh.set_sharp_from_angle(angle=radians(SHARP_DEG))
     mesh.materials.clear()
     mesh.materials.append(material_of(entry["finish"]))
     placed["groups"] = ",".join(entry["groups"])
